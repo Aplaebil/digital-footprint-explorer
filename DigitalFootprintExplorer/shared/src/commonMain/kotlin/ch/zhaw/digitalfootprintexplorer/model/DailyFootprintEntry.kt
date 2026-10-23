@@ -19,6 +19,8 @@ package ch.zhaw.digitalfootprintexplorer.model
 
 import kotlinx.datetime.LocalDate
 
+// [01] Keep the day, calculation time and three contributions beside the total, so history can explain
+// where a saved estimate came from.
 data class DailyFootprintEntry(
     val date: LocalDate,
     val kgCO2e: Double,

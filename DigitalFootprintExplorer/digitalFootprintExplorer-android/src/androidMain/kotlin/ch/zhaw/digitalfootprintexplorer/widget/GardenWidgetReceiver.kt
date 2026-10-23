@@ -20,6 +20,8 @@ package ch.zhaw.digitalfootprintexplorer.widget
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 
+// [01] This connects Android's widget events to the garden widget, including when a person adds one to the
+// Home Screen.
 class GardenWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = GardenWidget()
 }

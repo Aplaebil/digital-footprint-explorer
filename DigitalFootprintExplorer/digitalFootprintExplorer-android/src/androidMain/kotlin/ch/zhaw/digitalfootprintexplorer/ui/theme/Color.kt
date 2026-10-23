@@ -18,6 +18,8 @@
 package ch.zhaw.digitalfootprintexplorer.ui.theme
 import androidx.compose.ui.graphics.Color
 
+// [01] These named colours keep the Android screens visually consistent instead of choosing a new shade for
+// every control.
 val primaryLight = Color(0xFF136B55)
 val onPrimaryLight = Color(0xFFFFFFFF)
 val primaryContainerLight = Color(0xFFA3F2D7)
@@ -54,6 +56,8 @@ val surfaceContainerLight = Color(0xFFE9EFEB)
 val surfaceContainerHighLight = Color(0xFFE4EAE5)
 val surfaceContainerHighestLight = Color(0xFFDEE4DF)
 
+// [02] The medium-contrast light palette keeps a separate set of text and surface colours available for
+// theme choices.
 val primaryLightMediumContrast = Color(0xFF003E30)
 val onPrimaryLightMediumContrast = Color(0xFFFFFFFF)
 val primaryContainerLightMediumContrast = Color(0xFF297A64)
@@ -90,6 +94,7 @@ val surfaceContainerLightMediumContrast = Color(0xFFE4EAE5)
 val surfaceContainerHighLightMediumContrast = Color(0xFFD8DEDA)
 val surfaceContainerHighestLightMediumContrast = Color(0xFFCDD3CF)
 
+// [03] The high-contrast light palette provides stronger foreground and background pairs.
 val primaryLightHighContrast = Color(0xFF003327)
 val onPrimaryLightHighContrast = Color(0xFFFFFFFF)
 val primaryContainerLightHighContrast = Color(0xFF005441)
@@ -126,6 +131,8 @@ val surfaceContainerLightHighContrast = Color(0xFFDEE4DF)
 val surfaceContainerHighLightHighContrast = Color(0xFFD0D6D1)
 val surfaceContainerHighestLightHighContrast = Color(0xFFC2C8C4)
 
+// [04] Dark surfaces need their own readable foreground colours; simply reusing the light palette would
+// lose that balance.
 val primaryDark = Color(0xFF88D6BB)
 val onPrimaryDark = Color(0xFF00382B)
 val primaryContainerDark = Color(0xFF00513F)
@@ -162,6 +169,7 @@ val surfaceContainerDark = Color(0xFF1B211E)
 val surfaceContainerHighDark = Color(0xFF252B29)
 val surfaceContainerHighestDark = Color(0xFF303633)
 
+// [05] These are the medium-contrast dark colour choices, kept beside the other palettes for consistency.
 val primaryDarkMediumContrast = Color(0xFF9DECD1)
 val onPrimaryDarkMediumContrast = Color(0xFF002C21)
 val primaryContainerDarkMediumContrast = Color(0xFF519F86)
@@ -198,6 +206,7 @@ val surfaceContainerDarkMediumContrast = Color(0xFF232926)
 val surfaceContainerHighDarkMediumContrast = Color(0xFF2E3431)
 val surfaceContainerHighestDarkMediumContrast = Color(0xFF393F3C)
 
+// [06] The high-contrast dark palette provides another set of stronger text and surface pairs.
 val primaryDarkHighContrast = Color(0xFFB5FFE4)
 val onPrimaryDarkHighContrast = Color(0xFF000000)
 val primaryContainerDarkHighContrast = Color(0xFF84D2B7)
@@ -234,13 +243,8 @@ val surfaceContainerDarkHighContrast = Color(0xFF2C322F)
 val surfaceContainerHighDarkHighContrast = Color(0xFF363D3A)
 val surfaceContainerHighestDarkHighContrast = Color(0xFF424845)
 
+// [07] The three chart colours match the three kinds of contribution shown in the daily details.
 val pieChartAppUsageColor =  Color(0xFF6200EE)
 val pieChartDisplayColor = Color(0xFF03DAC6)
 val pieChartBackgroundColor = Color(0xFFBB86FC)
-
-
-
-
-
-
 

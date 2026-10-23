@@ -27,12 +27,15 @@ import ch.zhaw.digitalfootprintexplorer.permission.hasUsageStatsPermission
 import ch.zhaw.digitalfootprintexplorer.servicelayerplatform.service.TrackingService
 import ch.zhaw.digitalfootprintexplorer.worker.DailyFootprintWorker
 
+// [01] Opening the Android app gives yesterday a chance to finish if its scheduled calculation has not run
+// yet.
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        //ensure that the permissions are granted before starting the worker, otherwise data will be missing
+        // [02] Without usage access, a calculation would be missing its source data. Wait for the user to
+        // allow it.
         if (hasUsageStatsPermission(this)) {
             DailyFootprintWorker.runNow(applicationContext)
         }
@@ -42,12 +45,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // [03] Returning to the app is another chance to start tracking if Android blocked an earlier
+    // background start.
     override fun onResume() {
         super.onResume()
         TrackingService.start(this)
     }
 }
 
+// [04] This preview lets a developer inspect the Android screens without using a phone.
 @Preview
 @Composable
 fun AppAndroidPreview() {

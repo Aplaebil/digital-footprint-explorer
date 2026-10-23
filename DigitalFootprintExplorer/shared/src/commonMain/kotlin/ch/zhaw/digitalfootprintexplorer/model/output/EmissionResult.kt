@@ -17,10 +17,8 @@
 
 package ch.zhaw.digitalfootprintexplorer.model.output
 
-/**
- * Overall result of the emissions calculation.
- * All values in kgCO2e.
- */
+// [01] Keep all results in kilograms of CO2e until a screen chooses a display unit, avoiding mixed-unit
+// totals.
 data class EmissionResult(
     val ghgAppUsage: Double,
     val ghgDisplay: Double,

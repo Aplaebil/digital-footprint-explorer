@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import ch.zhaw.digitalfootprintexplorer.R
 import androidx.compose.ui.res.stringResource
 
+// [01] Show the garden widget before offering to add it. Later is also a valid choice.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WidgetOnboardingSheet(
@@ -83,6 +84,8 @@ fun WidgetOnboardingSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(32.dp))
+            // [02] The app requests the Home Screen addition; Android and the launcher still handle the
+            // user's final choice.
             Button(
                 onClick = onPin,
                 modifier = Modifier.fillMaxWidth()

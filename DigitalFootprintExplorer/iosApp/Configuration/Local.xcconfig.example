@@ -1,0 +1,17 @@
+// [01] Copy this example to the ignored Local.xcconfig file and replace the team placeholder with your
+// approved Apple Developer team.
+TEAM_ID = YOUR_TEAM_ID
+// [02] The signed app identity must match the entitlement request, and the app and widget profiles must allow
+// the same registered group.
+// DFE_APP_BUNDLE_IDENTIFIER = ch.zhaw.digitalfootprintexplorer.ios
+// DFE_APP_GROUP_IDENTIFIER = group.ch.zhaw.digitalfootprintexplorer.ios
+// [03] Use this optional template only for standard Family Controls. That capability alone does not give the
+// host app expanded usage data for automatic estimates.
+// CODE_SIGN_ENTITLEMENTS = Configuration/FamilyControls.entitlements
+
+// [04] Replace these examples with approved public pages. The unusual slash form keeps Xcode from reading the
+// HTTPS address as a comment.
+// DFE_PRIVACY_POLICY_URL = https:/$()/approved-host/privacy
+// DFE_SUPPORT_URL = https:/$()/approved-host/support
+// [05] Check App Store Connect for the next unused build number before preparing an upload.
+// CURRENT_PROJECT_VERSION = 1

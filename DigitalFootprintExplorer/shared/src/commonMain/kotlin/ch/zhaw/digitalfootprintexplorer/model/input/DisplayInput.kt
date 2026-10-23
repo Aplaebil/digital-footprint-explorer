@@ -17,11 +17,13 @@
 
 package ch.zhaw.digitalfootprintexplorer.model.input
 
+// [01] Pair brightness from zero to one with its duration in hours; the screen estimate needs both.
 data class BrightnessInterval(
     val normalizedBrightness: Double,
     val durationH: Double
 )
 
+// [02] Several brightness periods let the model account for a screen that changes during the day.
 data class DisplayInput(
     val intervals: List<BrightnessInterval>
 )

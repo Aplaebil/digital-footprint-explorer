@@ -17,24 +17,25 @@
 
 package ch.zhaw.digitalfootprintexplorer.model
 
-/**
- * Scientific constants of the emissions model.
- * EF = Emission Factor [kgCO2e/kWh]
- */
+// [01] Keep the model's fixed values in one place so Android and iOS use the same calculation rules.
 object ModelConstants {
 
-    /* Emission factors [kgCO2e/kWh] */
+    // [02] Electricity factors turn energy into kilograms of CO2e. The device uses the chosen mix; network
+    // and servers use the global factor.
     const val EF_SWISS = 0.0392
     const val EF_GLOBAL = 0.458
 
-    /* Charging loss */
+    // [03] Some charging energy is lost before reaching the device, so using the phone needs more
+    // electricity than its useful energy alone.
     const val CHARGING_EFFICIENCY = 0.585
 
-    /* Network intensity [kWh/GB] */
+    // [04] The network model assigns a different amount of energy to each decimal GB over Wi-Fi or mobile
+    // data.
     const val NETWORK_INTENSITY_WIFI = 0.006
     const val NETWORK_INTENSITY_CELLULAR = 0.055
 
-    /* Device power consumption P_device [W] per category */
+    // [05] Category power values describe typical model activity; they are not a live power reading from
+    // the user's phone.
     val P_DEVICE_BY_CATEGORY: Map<AppCategory, Double> = mapOf(
         AppCategory.VIDEO_STREAMING      to 1.0,
         AppCategory.AUDIO_STREAMING      to 0.5,
@@ -48,23 +49,19 @@ object ModelConstants {
         AppCategory.MISCELLANEOUS        to 0.5
     )
 
-    /**
-     * Display
-     *
-     * Maximum display power at brightness=1.0 \[W]
-     */
+    // [06] The display model scales this maximum by brightness and time to estimate screen energy.
     const val P_DISPLAY_MAX_WATT = 0.4
 
-    /** Background processes \[W] */
+    // [07] GPS and Bluetooth use their own power assumptions when active time is included.
     val P_BACKGROUND_BY_PROCESS: Map<BackgroundProcess, Double> = mapOf(
         BackgroundProcess.GPS       to 0.3,
         BackgroundProcess.BLUETOOTH to 0.04
     )
 
-    /** Backend energy intensity [kWh/GB] — single GB proxy applied uniformly across all categories. */
+    // [08] Server energy starts with one traffic-based rate. A separate multiplier gives AI activity its
+    // model-specific adjustment.
     const val BACKEND_INTENSITY_GB = 0.055
 
-    /** Per-category multiplier applied to the backend intensity [kWh/GB]. */
     val BACKEND_INTENSITY_FACTOR_BY_CATEGORY: Map<AppCategory, Double> = mapOf(
         AppCategory.ARTIFICIAL_INTELLIGENCE to 10.0
     )

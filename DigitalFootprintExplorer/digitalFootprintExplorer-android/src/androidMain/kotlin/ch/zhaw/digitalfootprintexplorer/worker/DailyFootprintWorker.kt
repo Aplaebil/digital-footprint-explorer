@@ -61,6 +61,8 @@ import java.util.concurrent.TimeUnit
 
 const val KEY_DEBUG_SUMMARY = "debug_summary"
 
+// [01] This Android job brings yesterday's available activity into one estimate, then updates saved history
+// and the garden.
 class DailyFootprintWorker(
     private val appContext: Context,
     params: WorkerParameters
@@ -68,6 +70,8 @@ class DailyFootprintWorker(
 
     override suspend fun doWork(): Result = try {
         doWorkInternal()
+    // [02] A failed calculation returns a failure summary instead of pretending that yesterday was
+    // completed.
     } catch (e: Exception) {
         Log.e(TAG, "❌ Worker failed with exception", e)
         Result.failure(
@@ -86,14 +90,16 @@ class DailyFootprintWorker(
 
         val alreadyCalculated = app.gardenStateCalculator.isDailyFootprintCalculated(yesterday)
 
-        // do not re-run the calculation if it already calculated the footprint for yesterday
+        // [03] Do not add the same completed day again. Still arrange the next run so daily work can
+        // continue.
         if (alreadyCalculated) {
             Log.d(TAG, "Worker already ran for yesterday (${yesterday}) — skipping calculation")
             scheduleNext(appContext)
             return Result.success()
         }
 
-        /* Calendar-day boundaries: yesterday 00:00 → today 00:00 */
+        // [04] Use the selected day window for each source, so app use, screen energy and background
+        // periods can be compared.
         val (startTime, endTime) = yesterdayBoundaries()
         val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
         Log.d(TAG, "📅 Calculating emissions for window [${fmt.format(java.util.Date(startTime))} → ${fmt.format(java.util.Date(endTime))}]")
@@ -106,6 +112,8 @@ class DailyFootprintWorker(
             usageStatsManager      = usageStatsManager
         ).collectNetworkMetrics(appContext, startTime, endTime, subscriberId)
 
+        // [05] These Android diagnostics show which traffic readings were available and help trace missing
+        // inputs during development.
         val measuredApps  = networkMetrics.count { it.wifiBytes is DataPoint.Measured || it.cellularBytes is DataPoint.Measured }
         val totalWifiMB   = networkMetrics.sumOf { it.wifiBytes.valueOrDefault() } / 1_000_000.0
         val totalCellMB   = networkMetrics.sumOf { it.cellularBytes.valueOrDefault() } / 1_000_000.0
@@ -137,7 +145,8 @@ class DailyFootprintWorker(
         )
         logEmissions(emissionResult)
 
-        /* Garden state */
+        // [06] Compare the result before saving it; otherwise yesterday could become part of its own
+        // comparison average.
         val (gardenState, baseline) = app.gardenStateCalculator.calculateGardenState(emissionResult.ghgTotal)
         app.gardenStateCalculator.recordDailyFootprint(
             date              = yesterday,
@@ -152,12 +161,13 @@ class DailyFootprintWorker(
         )
         Log.d(TAG, "🌱 GardenState → $gardenState (${f(emissionResult.ghgTotal * 1000)} gCO₂e today, baseline ${f(baseline * 1000)} gCO₂e, measured at $now)")
 
+        // [07] Only a saved result is sent to the widget, keeping the Home Screen garden tied to daily
+        // history.
         GardenWidget.updateState(appContext, gardenState)
         Log.d(TAG, "✅ Worker finished — widget updated")
 
         showDailyFootprintNotification(gardenState)
 
-        //reschedule the next worker
         scheduleNext(appContext)
 
         return Result.success()
@@ -195,7 +205,8 @@ class DailyFootprintWorker(
         }
     }
 
-    /** Formats with enough precision to show small values (e.g. 0.0024g instead of 0.00g). */
+    // [08] Small contributions still matter in diagnostics. Extra decimal places stop them from all looking
+    // like zero.
     private fun f(v: Double) = when {
         v == 0.0 -> "0.00"
         v < 0.01 -> "%.5f".format(v)
@@ -203,7 +214,6 @@ class DailyFootprintWorker(
         else     -> "%.2f".format(v)
     }
 
-    /** Formats a byte count as KB / MB / GB depending on magnitude. */
     private fun bytes(b: Double) = when {
         b >= 1_000_000_000.0 -> "${"%.2f".format(b / 1_000_000_000.0)} GB"
         b >= 1_000_000.0     -> "${"%.2f".format(b / 1_000_000.0)} MB"
@@ -212,6 +222,7 @@ class DailyFootprintWorker(
     }
 
     @Suppress("DEPRECATION", "MissingPermission")
+    // [09] Some Android accounts cannot read this mobile identity. Leave it absent when access is blocked.
     private fun readSubscriberId(): String? = try {
         val tm = appContext.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         tm.subscriberId
@@ -219,10 +230,8 @@ class DailyFootprintWorker(
         null
     }
 
-    /**
-     * Returns the Unix-ms boundaries for yesterday's full calendar day:
-     * yesterday 00:00:00.000 → today 00:00:00.000.
-     */
+    // [10] This Android path counts back a fixed 24 hours from local midnight; it does not adjust the span
+    // for a clock-change day.
     private fun yesterdayBoundaries(): Pair<Long, Long> {
         val todayMidnight = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -234,8 +243,10 @@ class DailyFootprintWorker(
         return yesterdayMidnight to todayMidnight
     }
 
+    // [11] The garden update must respect Android notification permission, even when the daily calculation
+    // succeeded.
     private fun showDailyFootprintNotification(gardenState: GardenState) {
-        // Starting with Android 13 (Tiramisu), apps need the POST_NOTIFICATIONS permission to send notifications.
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val permissionGranted = ContextCompat.checkSelfPermission(
                 appContext,
@@ -292,9 +303,7 @@ class DailyFootprintWorker(
     companion object {
         const val TAG = "DFE_Worker"
 
-        /**
-         * Fallback method to trigger the worker immediately.
-         */
+        // [12] Opening the app can request a catch-up job without waiting for the next overnight schedule.
         fun runNow(context: Context) {
             Log.d(TAG, "Enqueue immediate daily footprint worker")
 
@@ -310,6 +319,7 @@ class DailyFootprintWorker(
 
         }
 
+        // [13] Ask Android to run around the next local 03:00. The system may delay background work.
         fun scheduleNext(context: Context) {
             val now = Calendar.getInstance()
 
@@ -327,7 +337,8 @@ class DailyFootprintWorker(
 
             var delayMs = next3am.timeInMillis - now.timeInMillis
 
-            // Sanity check: the delay should be between 0 and 24h, but in case of any clock issues we clamp it to 25h to avoid scheduling a worker far in the future or with a negative delay.
+            // [14] A changed clock should not create a negative wait or push the next check far into the
+            // future.
             val maxDelayMs = TimeUnit.HOURS.toMillis(25)
             if (delayMs !in 1..maxDelayMs) {
                 Log.w(TAG, "Computed delay $delayMs ms looks wrong — clamping to 24h")

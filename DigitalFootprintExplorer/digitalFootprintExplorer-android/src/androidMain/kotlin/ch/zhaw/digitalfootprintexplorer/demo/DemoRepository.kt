@@ -26,30 +26,18 @@ import ch.zhaw.digitalfootprintexplorer.model.output.EmissionResult
 import ch.zhaw.digitalfootprintexplorer.widget.GardenWidget
 import kotlinx.coroutines.CancellationException
 
-/**
- * Single source of truth for demo mode UI state.
- *
- * Owns all SharedPreferences access for the demo UI (active flag, last garden state,
- * last summary text) and delegates measurement logic to [DemoCalculator].
- *
- * Intended to be created once per [androidx.compose.runtime.Composable] lifetime via
- * `remember { DemoRepository(context) }`.
- */
+// [01] This keeps the Android demo screen and widget on the same saved demo result.
 class DemoRepository(private val appContext: Context) {
 
     private val prefs: SharedPreferences =
         appContext.getSharedPreferences(DemoPreferences.PREFS_STATE_FILE, Context.MODE_PRIVATE)
 
-    /** True if demo was already active when this repository was created (e.g. after app restart). */
     val wasActiveOnStart: Boolean = prefs.getBoolean(DemoPreferences.KEY_ACTIVE, false)
 
-    /** Last persisted summary text, or null if no result has been calculated yet. */
     fun loadSummary(): String? = prefs.getString(DemoPreferences.KEY_SUMMARY, null)
 
-    /**
-     * Activates demo mode: takes a fresh traffic baseline and clears any previous result.
-     * Call when the user toggles demo ON.
-     */
+    // [02] A deliberate new demo starts clean; an old demo result should not appear to belong to the new
+    // experiment.
     fun activate() {
         DemoCalculator.resetBaseline(appContext)
         prefs.edit {
@@ -59,11 +47,8 @@ class DemoRepository(private val appContext: Context) {
         }
     }
 
-    /**
-     * Deactivates demo mode: clears the baseline and all persisted results, then restores
-     * the widget to the last garden state recorded by the real daily worker (if available).
-     * Call when the user toggles demo OFF.
-     */
+    // [03] When the demo ends, bring back the real saved garden instead of leaving the demonstration on the
+    // widget.
     suspend fun deactivate() {
         DemoCalculator.clearBaseline(appContext)
         prefs.edit {
@@ -76,14 +61,8 @@ class DemoRepository(private val appContext: Context) {
         if (realState != null) GardenWidget.updateState(appContext, realState)
     }
 
-    /**
-     * Calculates emissions since the last baseline, updates the widget, and persists
-     * the result so it survives activity restarts.
-     *
-     * @return Pair of the raw [EmissionResult] and the derived [GardenState].
-     * @throws CancellationException if the coroutine is cancelled (never swallowed).
-     * @throws Exception for any other calculation failure (caller should handle/log).
-     */
+    // [04] Save the result after updating the widget, so opening the app again can show the same demo
+    // summary.
     suspend fun refresh(): Pair<EmissionResult, GardenState> {
         val (result, gardenState) = DemoCalculator.calculate(appContext)
         GardenWidget.updateState(appContext, gardenState)
@@ -94,11 +73,8 @@ class DemoRepository(private val appContext: Context) {
         return result to gardenState
     }
 
-    /**
-     * Builds the monospace summary string shown below the refresh button.
-     * Display is excluded from the demo calculation (always-on screen is constant
-     * noise that masks the app-usage signal), so it is not shown here.
-     */
+    // [05] The demo summary uses grams for small changes. It leaves out display energy because this demo
+    // does not calculate it.
     fun buildSummary(result: EmissionResult, stateName: String): String {
         fun f(v: Double) = "%.6f".format(v)
         return """

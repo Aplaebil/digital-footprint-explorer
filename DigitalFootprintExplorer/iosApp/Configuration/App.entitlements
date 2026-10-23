@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- [01] The standard app can share its saved garden summary with the widget through the registered App Group. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>$(DFE_APP_GROUP_IDENTIFIER)</string>
+	</array>
+</dict>
+</plist>

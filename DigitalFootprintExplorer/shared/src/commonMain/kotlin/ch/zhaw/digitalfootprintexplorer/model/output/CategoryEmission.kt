@@ -19,6 +19,8 @@ package ch.zhaw.digitalfootprintexplorer.model.output
 
 import ch.zhaw.digitalfootprintexplorer.model.AppCategory
 
+// [01] Keep device, network and server estimates in kilograms beside their category, so the daily details
+// can explain its total.
 data class CategoryEmission(
     val category: AppCategory,
     val ghgDevice: Double,

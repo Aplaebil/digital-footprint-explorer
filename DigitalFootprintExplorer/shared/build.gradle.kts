@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+// [01] Both apps use this calculation model, so the emissions rules live in one place.
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
@@ -13,6 +14,8 @@ kotlin {
         }
     }
 
+    // [02] The iPhone and its simulator need separate builds of the same model. Swift receives them as the
+    // Shared framework.
     listOf(
         iosArm64(),
         iosSimulatorArm64()
@@ -23,6 +26,7 @@ kotlin {
         }
     }
 
+    // [03] Calculation code is shared; each platform supplies its own local database connection.
     sourceSets {
         commonMain.dependencies {
             implementation(libs.sqldelight.runtime)
@@ -40,6 +44,8 @@ kotlin {
     }
 }
 
+// [04] The database code comes from the saved table definitions, keeping history reads and writes
+// consistent.
 sqldelight {
     databases {
         create("DFEDatabase") {

@@ -19,9 +19,8 @@ package ch.zhaw.digitalfootprintexplorer.servicelayerplatform.model
 
 import ch.zhaw.digitalfootprintexplorer.model.AppCategory
 
-/**
- * Stores information about an installed app.
- */
+// [01] Keep the visible name, Android identity and model category together, so usage is assigned to the
+// intended app.
 data class App(
     val uid: Int,
     val name: String,

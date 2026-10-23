@@ -41,6 +41,8 @@ import ch.zhaw.digitalfootprintexplorer.ui.theme.pieChartAppUsageColor
 import ch.zhaw.digitalfootprintexplorer.ui.theme.pieChartBackgroundColor
 import ch.zhaw.digitalfootprintexplorer.ui.theme.pieChartDisplayColor
 
+// [01] Show the latest saved daily result, so the statistics and the saved garden refer to the same
+// history.
 @Composable
 fun StatisticsScreen(
     innerPadding: PaddingValues
@@ -88,6 +90,8 @@ fun StatisticsScreen(
 
                     Spacer(Modifier.height(Spacing.gutter))
 
+                    // [02] A zero total has no meaningful pie shares. Use a message instead of drawing a
+                    // misleading chart.
                     if (total > 0) {
                         EmissionPieChart(
                             appUsage = appUsage,
@@ -117,6 +121,8 @@ fun StatisticsScreen(
 
                         Spacer(Modifier.height(8.dp))
 
+                        // [03] The model stores kilograms, but grams make these small daily estimates
+                        // easier to read.
                         EmissionRow(
                             label = stringResource(R.string.app_usage),
                             valueGrams = appUsage * 1000,
@@ -151,6 +157,8 @@ fun StatisticsScreen(
                     }
                 }
             }
+        // [04] No saved day is different from a day with zero emissions. Show an empty-history message
+        // until a result exists.
         } else {
             Card(
                 modifier = Modifier.fillMaxWidth(),

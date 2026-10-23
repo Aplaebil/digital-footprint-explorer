@@ -27,12 +27,15 @@ import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.text.googlefonts.Font
 import ch.zhaw.digitalfootprintexplorer.R
 
+// [01] The font source and its trusted certificates keep Android's downloadable font request tied to the
+// intended provider.
 val provider = GoogleFont.Provider(
     providerAuthority = "com.google.android.gms.fonts",
     providerPackage = "com.google.android.gms",
     certificates = R.array.com_google_android_gms_fonts_certs
 )
 
+// [02] Use the same font family for body text and headings, so the screens feel like one app.
 val bodyFontFamily = FontFamily(
     Font(
         googleFont = GoogleFont("Manrope"),
@@ -47,7 +50,8 @@ val displayFontFamily = FontFamily(
     )
 )
 
-// Default Material 3 typography values
+// [03] Keep Material's text sizes and weights while changing the font family, rather than redefining every
+// text style.
 val baseline = Typography()
 
 val AppTypography = Typography(

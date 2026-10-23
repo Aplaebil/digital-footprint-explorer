@@ -17,6 +17,8 @@
 
 package ch.zhaw.digitalfootprintexplorer.model
 
+// [01] Both platforms use these same activity groups, so their estimates can be compared category by
+// category.
 enum class AppCategory {
     VIDEO_STREAMING,
     AUDIO_STREAMING,

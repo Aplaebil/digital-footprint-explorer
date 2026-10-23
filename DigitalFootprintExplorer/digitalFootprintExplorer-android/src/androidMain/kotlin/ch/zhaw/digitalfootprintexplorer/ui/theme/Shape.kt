@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
+// [01] One shared corner size gives the Android cards a consistent shape.
 val AppShapes = Shapes(
     medium = RoundedCornerShape(16.dp),
 )

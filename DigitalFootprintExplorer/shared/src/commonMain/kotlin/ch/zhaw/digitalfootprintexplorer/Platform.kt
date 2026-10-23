@@ -17,6 +17,7 @@
 
 package ch.zhaw.digitalfootprintexplorer
 
+// [01] Shared code asks each phone platform for its own name without importing Android or iOS tools here.
 interface Platform {
     val name: String
 }

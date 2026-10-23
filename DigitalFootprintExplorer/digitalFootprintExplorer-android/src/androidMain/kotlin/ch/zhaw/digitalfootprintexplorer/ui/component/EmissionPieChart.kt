@@ -35,6 +35,8 @@ import com.patrykandpatrick.vico.compose.pie.data.PieValueFormatter
 import com.patrykandpatrick.vico.compose.pie.data.pieSeries
 import com.patrykandpatrick.vico.compose.pie.rememberPieChart
 
+// [01] The chart gives a quick view of how app use, screen energy and background activity share the
+// estimate.
 @Composable
 fun EmissionPieChart(
     appUsage: Double,
@@ -44,6 +46,7 @@ fun EmissionPieChart(
 ) {
     val modelProducer = remember { PieChartModelProducer() }
 
+    // [02] Rebuild the chart data when its totals change, so the picture follows the current result.
     LaunchedEffect(appUsage, display, background) {
         modelProducer.runTransaction {
             pieSeries {
@@ -62,6 +65,8 @@ fun EmissionPieChart(
         )
     }
 
+    // [03] Each part keeps the same colour as its detail row, making the picture and the numbers easier to
+    // match.
     val pieChart = rememberPieChart(
         sliceProvider = PieChart.SliceProvider.series(
             listOf(

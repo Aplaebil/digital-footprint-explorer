@@ -72,6 +72,7 @@ import ch.zhaw.digitalfootprintexplorer.ui.screen.InfoScreen
 import ch.zhaw.digitalfootprintexplorer.ui.screen.UsageStatsPermissionRequiredScreen
 import ch.zhaw.digitalfootprintexplorer.ui.theme.Spacing
 
+// [01] This brings the Android screens together and checks access before showing usage results.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
@@ -91,13 +92,16 @@ fun App() {
             mutableStateOf(hasNotificationPermission(context))
         }
 
-        // Permission launcher for notifications
+        // [02] Android owns the permission choice. We keep its answer so the screen reflects what the user
+        // allowed.
         val notificationPermissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { isGranted ->
             hasNotificationPermissionGranted = isGranted
         }
 
+        // [03] The widget introduction should not return on every visit, so its completed choice is saved
+        // on this phone.
         LaunchedEffect(Unit) {
             val prefs = context.getSharedPreferences("dfe_onboarding", Context.MODE_PRIVATE)
             val widgetOnboardingDone = prefs.getBoolean("widget_onboarding_done", false)
@@ -107,7 +111,8 @@ fun App() {
             hasNotificationPermissionGranted = hasNotificationPermission(context)
         }
 
-        // Request notification permission after usage permission is granted
+        // [04] Ask about notifications after usage access, rather than showing two unrelated requests at
+        // once.
         LaunchedEffect(hasUsagePermission) {
             if (hasUsagePermission) {
                 val prefs = context.getSharedPreferences("dfe_onboarding", Context.MODE_PRIVATE)
@@ -122,7 +127,8 @@ fun App() {
             }
         }
 
-        // Recheck if permission was granted when user returns into app
+        // [05] A person may change access in Android Settings. Read it again when they return instead of
+        // keeping an old answer.
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
 
@@ -146,6 +152,8 @@ fun App() {
                 }
             )
         } else {
+            // [06] Adding the widget is optional. Choosing Later also closes this introduction for future
+            // visits.
             val markOnboardingDone = {
                 context.getSharedPreferences("dfe_onboarding", Context.MODE_PRIVATE)
                     .edit {
@@ -171,7 +179,6 @@ fun App() {
                 )
             }
 
-
             val repo = remember { DemoRepository(context) }
             var demoActive by remember { mutableStateOf(repo.wasActiveOnStart) }
             var demoSummaryText by remember { mutableStateOf(repo.loadSummary()) }
@@ -179,6 +186,8 @@ fun App() {
 
             var selectedTab by remember { mutableIntStateOf(0) }
 
+            // [07] The same bottom navigation stays available while the user moves between the garden,
+            // results and app information.
             Scaffold(
                 bottomBar = {
                     Box(
@@ -256,6 +265,8 @@ fun App() {
                                     .verticalScroll(rememberScrollState()),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
+                                // [08] The normal garden comes from saved daily history. A demo, when
+                                // active, uses its separate saved state.
                                 val gardenState by produceState<GardenState?>(initialValue = null, demoActive, demoRefreshing) {
                                     value = if (demoActive) {
                                         val prefs = context.getSharedPreferences(PREFS_STATE_FILE, Context.MODE_PRIVATE)
@@ -266,82 +277,6 @@ fun App() {
                                         app.gardenStateCalculator.getLatestGardenState()
                                     }
                                 }
-
-//                                Card(
-//                                    modifier = Modifier
-//                                        .fillMaxWidth(),
-//                                    colors = CardDefaults.cardColors(
-//                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-//                                    ),
-//                                    shape = MaterialTheme.shapes.medium
-//                                ) {
-//                                    Row(
-//                                        modifier = Modifier
-//                                            .fillMaxWidth()
-//                                            .padding(20.dp),
-//                                        verticalAlignment = Alignment.CenterVertically
-//                                    ) {
-//                                        Column(modifier = Modifier.weight(1f)) {
-//                                            Text("Demo-Modus", style = MaterialTheme.typography.titleMedium)
-//                                        }
-//                                        DfeSwitch(
-//                                            checked = demoActive,
-//                                            onCheckedChange = { enabled ->
-//                                                demoActive = enabled
-//                                                demoSummaryText = null
-//                                                if (enabled) {
-//                                                    repo.activate()
-//                                                } else {
-//                                                    scope.launch { repo.deactivate() }
-//                                                }
-//                                            }
-//                                        )
-//                                    }
-//
-//                                    if (demoActive) {
-//                                        Button(
-//                                            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
-//                                            enabled = !demoRefreshing,
-//                                            onClick = {
-//                                                scope.launch {
-//                                                    demoRefreshing = true
-//                                                    try {
-//                                                        val (result, state) = repo.refresh()
-//                                                        demoSummaryText = repo.buildSummary(result, state.name)
-//                                                    } catch (e: CancellationException) {
-//                                                        throw e
-//                                                    } catch (e: Exception) {
-//                                                        Log.e("DFE_Demo", "Refresh failed", e)
-//                                                    } finally {
-//                                                        demoRefreshing = false
-//                                                    }
-//                                                }
-//                                            }
-//                                        ) {
-//                                            if (demoRefreshing) {
-//                                                CircularProgressIndicator(
-//                                                    modifier = Modifier.padding(end = 8.dp),
-//                                                    strokeWidth = 2.dp,
-//                                                    color = MaterialTheme.colorScheme.onPrimary
-//                                                )
-//                                            }
-//                                            Text("Gartenzustand aktualisieren")
-//                                        }
-//
-//                                        demoSummaryText?.let { summary ->
-//                                            Text(
-//                                                text = summary,
-//                                                modifier = Modifier.padding(
-//                                                    start = 16.dp,
-//                                                    end = 16.dp,
-//                                                    bottom = 12.dp
-//                                                ),
-//                                                style = MaterialTheme.typography.bodySmall,
-//                                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-//                                            )
-//                                        }
-//                                    }
-//                                }
 
                                 Spacer(modifier = Modifier.height(Spacing.gutter))
 

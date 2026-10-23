@@ -19,6 +19,8 @@ package ch.zhaw.digitalfootprintexplorer
 
 import android.os.Build
 
+// [01] This supplies the real Android system name and version when shared code asks which platform it is
+// running on.
 class AndroidPlatform : Platform {
     override val name: String = "Android ${Build.VERSION.SDK_INT}"
 }

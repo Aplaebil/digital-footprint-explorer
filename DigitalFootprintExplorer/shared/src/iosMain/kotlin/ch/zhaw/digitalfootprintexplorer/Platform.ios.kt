@@ -19,6 +19,8 @@ package ch.zhaw.digitalfootprintexplorer
 
 import platform.UIKit.UIDevice
 
+// [01] This supplies the real iOS system name and version when shared code asks which platform it is
+// running on.
 class IOSPlatform : Platform {
     override val name: String = UIDevice.currentDevice.systemName() + " " + UIDevice.currentDevice.systemVersion
 }

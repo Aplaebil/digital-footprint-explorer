@@ -22,7 +22,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
-
+// [01] Use the app's shared on/off colours so the same choice looks familiar wherever it appears.
 @Composable
 fun DfeSwitch(
     checked: Boolean,

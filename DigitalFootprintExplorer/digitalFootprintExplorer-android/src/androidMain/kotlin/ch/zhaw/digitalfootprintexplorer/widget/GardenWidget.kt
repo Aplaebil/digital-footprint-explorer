@@ -45,24 +45,17 @@ import ch.zhaw.digitalfootprintexplorer.MainActivity
 import ch.zhaw.digitalfootprintexplorer.R
 import ch.zhaw.digitalfootprintexplorer.model.GardenState
 
+// [01] The Android Home Screen garden shows the saved daily state and opens the app when tapped.
 class GardenWidget : GlanceAppWidget() {
 
-    /**
-     * Use Glance's built-in Preferences DataStore as the state backing.
-     *
-     * The previous approach (SharedPreferences + manual update()) had a subtle flaw:
-     * [provideGlance] read the state ONCE before [provideContent] and passed it as a
-     * fixed value, so Glance had no way to detect a change and sometimes skipped the
-     * redraw. With [PreferencesGlanceStateDefinition], [currentState] inside
-     * [provideContent] is reactive — every [updateAppWidgetState] call reliably
-     * triggers a recomposition.
-     */
+    // [02] Let the widget framework watch its saved state, so a new result can trigger a redraw rather than
+    // leaving an old picture.
     override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            // currentState() reads from Glance's DataStore reactively.
-            // It is re-evaluated on every recomposition triggered by updateAppWidgetState.
+
+            // [03] Read state inside the widget content so the next redraw can pick up a changed garden.
             val prefs     = currentState<Preferences>()
             val stateName = prefs[KEY_STATE] ?: GardenState.FLOURISHING.name
             val state     = runCatching { GardenState.valueOf(stateName) }.getOrDefault(GardenState.FLOURISHING)
@@ -71,6 +64,7 @@ class GardenWidget : GlanceAppWidget() {
     }
 
     @Composable
+    // [04] Use the same five garden pictures as the app, making the Home Screen summary familiar.
     private fun GardenContent(state: GardenState) {
         val imageRes = when (state) {
             GardenState.FLOURISHING -> R.drawable.garden_state_1_flourishing
@@ -99,13 +93,7 @@ class GardenWidget : GlanceAppWidget() {
     companion object {
         private val KEY_STATE = stringPreferencesKey("garden_state")
 
-        /**
-         * Writes [state] into Glance's DataStore and triggers a widget refresh.
-         *
-         * [updateAppWidgetState] is the idiomatic Glance API: it atomically updates
-         * the DataStore entry and guarantees that the next [GlanceAppWidget.update]
-         * call sees the new value via [currentState].
-         */
+        // [05] Save the new state for every placed widget before asking Android to redraw each one.
         suspend fun updateState(context: Context, state: GardenState) {
             GlanceAppWidgetManager(context)
                 .getGlanceIds(GardenWidget::class.java)

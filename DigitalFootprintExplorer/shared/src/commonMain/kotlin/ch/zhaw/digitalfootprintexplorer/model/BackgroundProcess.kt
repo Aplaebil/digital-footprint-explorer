@@ -17,11 +17,14 @@
 
 package ch.zhaw.digitalfootprintexplorer.model
 
+// [01] The shared model includes these two background services when their active time is available or
+// supplied as an assumption.
 enum class BackgroundProcess {
     GPS,
     BLUETOOTH
 }
 
+// [02] Store duration in hours because the model's service power values are expressed per hour of use.
 data class ProcessUsage(
     val process: BackgroundProcess,
     val durationH: Float

@@ -23,19 +23,14 @@ import ch.zhaw.digitalfootprintexplorer.model.input.DisplayInput
 import ch.zhaw.digitalfootprintexplorer.model.output.CategoryEmission
 import ch.zhaw.digitalfootprintexplorer.model.output.EmissionResult
 
-/**
- * Calculates the CO2 footprint of smartphone usage.
- *
- * Model formula (Thesis Ch. 3):
- *   GHG_total = GHG_appUsage + GHG_display + GHG_background
- *
- * @param userEmissionFactor Emission factor of the user's electricity mix [kgCO2e/kWh].
- *   Default: Swiss electricity mix.
- */
+// [01] The estimate combines device use, network traffic, servers, the screen and background services.
+// These are model results, not measured emissions.
 class EmissionsCalculator(
     private val userEmissionFactor: Double = ModelConstants.EF_SWISS
 ) {
 
+    // [02] Keep the three main contributions separate so the result can explain the total instead of
+    // showing only one unexplained number.
     fun calculate(
         appUsage: List<AppUsageInput>,
         display: DisplayInput,
@@ -50,17 +45,15 @@ class EmissionsCalculator(
         )
     }
 
-    /**
-     * Block 1: App Usage
-     *
-     * GHG_appUsage = Σ_k [GHG_device,k + GHG_network,k + GHG_backend,k]
-     */
-
+    // [03] Group apps by activity before applying category power values. Several apps in one category
+    // should still contribute to one category total.
     private fun calculateAppUsage(metrics: List<AppUsageInput>): List<CategoryEmission> {
-        /* Aggregate by category */
+
         return metrics
             .groupBy { it.appCategory }
             .map { (category, entries) ->
+                // [04] Power needs hours and traffic rates need decimal GB, so convert the recorded seconds
+                // and bytes before using those rates.
                 val totalTimeH = entries.sumOf { it.totalForegroundTime } / 3600.0
                 val totalWifiGB = entries.fold(0.0) { acc, m -> acc + m.wifiBytes.valueOrDefault() } / 1_000_000_000.0
                 val totalCellularGB = entries.fold(0.0) { acc, m -> acc + m.cellularBytes.valueOrDefault() } / 1_000_000_000.0
@@ -74,9 +67,8 @@ class EmissionsCalculator(
             }
     }
 
-    /**
-     * GHG_device,k = P_device,k \[W] * t_k \[h] / 1000 * (1/η) * EF_user
-     */
+    // [05] Device electricity includes the model's charging losses, then uses the chosen electricity mix to
+    // estimate its emissions.
     private fun calculateDevice(category: AppCategory, timeH: Double): Double {
         val pWatt = ModelConstants.P_DEVICE_BY_CATEGORY[category]
             ?: ModelConstants.P_DEVICE_BY_CATEGORY[AppCategory.MISCELLANEOUS]!!
@@ -84,10 +76,8 @@ class EmissionsCalculator(
         return energyKwh / ModelConstants.CHARGING_EFFICIENCY * userEmissionFactor
     }
 
-    /**
-     * GHG_network,k = (wifiGB * I_WIFI + cellularGB * I_CELLULAR) * EF_global
-     *
-     */
+    // [06] Wi-Fi and mobile traffic have different energy rates. Keeping them separate lets the estimate
+    // reflect that difference.
     private fun calculateNetwork(wifiGB: Double, cellularGB: Double): Double {
         val energyKwh =
             wifiGB * ModelConstants.NETWORK_INTENSITY_WIFI +
@@ -95,22 +85,14 @@ class EmissionsCalculator(
         return energyKwh * ModelConstants.EF_GLOBAL
     }
 
-    /**
-     * GHG_backend,k = totalDataGB * I_backend * factor_k * EF_global
-     *
-     */
+    // [07] Server energy follows traffic volume, with a category multiplier where the model defines one.
     private fun calculateBackend(category: AppCategory, totalDataGB: Double): Double {
         val factor = ModelConstants.BACKEND_INTENSITY_FACTOR_BY_CATEGORY[category] ?: 1.0
         return totalDataGB * ModelConstants.BACKEND_INTENSITY_GB * factor * ModelConstants.EF_GLOBAL
     }
 
-    /**
-     * Block 2: Display
-     *
-     * E_display \[Wh] = P_display \[W] * Σ_i (B̃_i * Δt_i \[h])
-     * GHG_display = E_display/1000 * (1/η) * EF_user
-     */
-
+    // [08] A bright screen uses more of the model's display power; dark periods contribute no display
+    // energy.
     private fun calculateDisplay(display: DisplayInput): Double {
         val energyWh = ModelConstants.P_DISPLAY_MAX_WATT *
             display.intervals.fold(0.0) { acc, i -> acc + i.normalizedBrightness * i.durationH }
@@ -118,12 +100,8 @@ class EmissionsCalculator(
         return energyKwh / ModelConstants.CHARGING_EFFICIENCY * userEmissionFactor
     }
 
-    /**
-     * Block 3: Background processes
-     *
-     * GHG_background = Σ_p (P_p \[W] * t_p \[h] / 1000 * (1/η) * EF_user)
-     */
-
+    // [09] Each tracked service adds its own power over its active time, so these costs do not get lost
+    // inside app traffic.
     private fun calculateBackground(background: BackgroundInput): Double {
         return background.activeProcesses.fold(0.0) { acc, proc ->
             val pWatt = ModelConstants.P_BACKGROUND_BY_PROCESS[proc.process] ?: 0.0

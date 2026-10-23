@@ -27,6 +27,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
+// [01] Bring app time and network totals into the shared model without asking the Android user to enter
+// each value.
 class MetricCollector(
     private val installedAppProvider: InstalledAppProvider,
     private val networkUsageDataSource: NetworkUsageDataSource,
@@ -42,14 +44,19 @@ class MetricCollector(
         if (startTime > endTime) throw IllegalArgumentException("Start time must be before end time.")
 
         val apps = installedAppProvider.getInstalledLauncherApps(context)
+        // [02] Limit simultaneous lookups so collecting many apps does not put all of them to work at once.
         val dispatcher = Dispatchers.IO.limitedParallelism(3)
 
+        // [03] Read the usage summary once for this window, then match each app to that same set of
+        // readings.
         val foregroundMap: Map<String, Long> = usageStatsManager
             .queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
             .associate { it.packageName to it.totalTimeInForeground }
 
         apps.map { app ->
             async(dispatcher) {
+                // [04] Keep a denied network reading marked unavailable. Missing access is different from
+                // measured zero traffic.
                 val wifiBytes: DataPoint = networkUsageDataSource.getUsageBytes(
                     networkType = NetworkType.WIFI,
                     subscriberId = null,
@@ -68,6 +75,8 @@ class MetricCollector(
                 )?.let { DataPoint.Measured(it.toDouble()) }
                     ?: DataPoint.Unavailable("permission denied")
 
+                // [05] Android reports foreground time in milliseconds; the shared calculation expects
+                // seconds.
                 AppUsageInput(
                     appName             = app.name,
                     wifiBytes           = wifiBytes,

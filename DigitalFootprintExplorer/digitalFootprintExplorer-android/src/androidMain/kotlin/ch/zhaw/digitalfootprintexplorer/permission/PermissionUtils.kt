@@ -26,6 +26,8 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 import android.Manifest
 
+// [01] Android usage history needs the user's approval. The app checks that approval instead of assuming
+// access.
 fun hasUsageStatsPermission(context: Context): Boolean {
     val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
     val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -46,12 +48,16 @@ fun hasUsageStatsPermission(context: Context): Boolean {
     return mode == AppOpsManager.MODE_ALLOWED
 }
 
+// [02] Only the user can allow usage access in Android Settings; this opens the place where they can
+// decide.
 fun openUsageStatsSettings(context: Context) {
     val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     context.startActivity(intent)
 }
 
+// [03] Newer Android versions ask separately about notifications, so daily updates must respect that answer
+// too.
 fun hasNotificationPermission(context: Context): Boolean {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         ContextCompat.checkSelfPermission(
@@ -59,7 +65,7 @@ fun hasNotificationPermission(context: Context): Boolean {
             Manifest.permission.POST_NOTIFICATIONS
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
     } else {
-        // Notifications are enabled by default on older Android versions
+
         true
     }
 }

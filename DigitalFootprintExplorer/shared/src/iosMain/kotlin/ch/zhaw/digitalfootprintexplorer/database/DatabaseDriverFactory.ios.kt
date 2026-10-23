@@ -20,9 +20,12 @@ package ch.zhaw.digitalfootprintexplorer.database
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 
-actual class DatabaseDriverFactory {
-    actual fun createDriver(): SqlDriver =
+// [01] Open the iOS history database locally, using the same table definitions as the shared model.
+class DatabaseDriverFactory : DatabaseDriverProvider {
+    override fun createDriver(): SqlDriver =
         NativeSqliteDriver(DFEDatabase.Schema, "dfe.db").also { driver ->
+            // [02] Related database rows should stay linked, so a category detail cannot quietly refer to a
+            // missing daily entry.
             driver.execute(null, "PRAGMA foreign_keys = ON", 0)
         }
 }

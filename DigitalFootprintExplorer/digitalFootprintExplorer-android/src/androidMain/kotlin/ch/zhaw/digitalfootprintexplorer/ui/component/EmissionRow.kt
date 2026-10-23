@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+// [01] Show the label beside its grams and share of the total, using the same colour as the chart.
 @Composable
 fun EmissionRow(
     label: String,

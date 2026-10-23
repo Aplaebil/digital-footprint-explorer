@@ -17,5 +17,7 @@
 
 package ch.zhaw.digitalfootprintexplorer.util
 
+// [01] Keep both job names available so an app update can cancel the older schedule before using the
+// current one.
 const val WORKER_NAME = "daily_footprint"
 const val NEW_WORKER_NAME = "daily_footprint_v2"

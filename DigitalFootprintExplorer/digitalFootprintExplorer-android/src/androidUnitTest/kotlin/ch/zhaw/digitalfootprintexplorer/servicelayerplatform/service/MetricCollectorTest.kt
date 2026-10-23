@@ -33,6 +33,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+// [01] Pretend usage and traffic sources let these checks trace exactly what reaches the model, without
+// using personal activity.
 class MetricCollectorTest {
     private val youtubeUid = 1233
     private val instagramUid = 1234
@@ -43,6 +45,8 @@ class MetricCollectorTest {
     private val context = mockk<Context>()
 
     @Test
+    // [02] A known Wi-Fi reading should stay measured, alongside the separate measured zero from the mobile
+    // source.
     fun testCollectNetworkMetricsForWifi() = runTest {
         setUpMocks(
             appTwoCellularBytes = 0L,
@@ -70,6 +74,8 @@ class MetricCollectorTest {
     }
 
     @Test
+    // [03] Known mobile traffic should stay separate from a measured zero on Wi-Fi, without being lost or
+    // copied across.
     fun testCollectNetworkMetricsForMobile() = runTest {
         setUpMocks(
             appTwoWifiBytes = 0L,
@@ -97,6 +103,8 @@ class MetricCollectorTest {
     }
 
     @Test
+    // [04] When both sources answer, both readings should reach the same app input without replacing each
+    // other.
     fun testCollectNetworkMetricsForBoth() = runTest {
         setUpMocks()
         val metricCollector = MetricCollector(installedAppProvider, networkUsageDataSource, usageStatsManager)
@@ -121,6 +129,8 @@ class MetricCollectorTest {
     }
 
     @Test
+    // [05] A reversed time window should stop before querying activity, because it cannot describe a valid
+    // day.
     fun testStartTimeIsBeforeEndTime() = runTest {
         setUpMocks()
         val metricCollector = MetricCollector(installedAppProvider, networkUsageDataSource, usageStatsManager)
@@ -136,6 +146,8 @@ class MetricCollectorTest {
         }
     }
 
+    // [06] Use fixed answers for these pretend sources so a failure points to collection logic rather than
+    // a changing phone.
     private fun setUpMocks(
         appOneUid: Int = 1233,
         appTwoUid: Int = 1234,

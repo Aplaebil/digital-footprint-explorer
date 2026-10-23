@@ -30,6 +30,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import ch.zhaw.digitalfootprintexplorer.R
 
+// [01] Explain why Android usage access is needed and let the user open the system screen where that choice
+// belongs.
 @Composable
 fun UsageStatsPermissionRequiredScreen(
     onOpenSettings: () -> Unit

@@ -33,16 +33,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-/**
- * Application entry point.
- *
- * Initialises:
- *  - SQLDelight database and [GardenStateCalculator]
- *  - [DisplayBrightnessObserver] and [BackgroundProcessTracker] (registration is handled
- *    by [TrackingService] so that tracking continues even when the app is not in the foreground)
- *  - [TrackingService] as a foreground service for continuous brightness / GPS / Bluetooth tracking
- *  - [DailyFootprintWorker] scheduled via WorkManager (runs once per 24 h)
- */
+// [01] The Android app shares one history store and one set of activity observers during its lifetime.
 class DFEApplication : Application() {
 
     lateinit var gardenStateCalculator: GardenStateCalculator
@@ -57,20 +48,26 @@ class DFEApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        // [02] Keeping these helpers together lets the daily calculation use the same tracked periods as
+        // the rest of the app.
         val db = createDatabase(DatabaseDriverFactory(this))
         gardenStateCalculator = GardenStateCalculator(db)
 
         displayBrightnessObserver = DisplayBrightnessObserver(this)
         backgroundProcessTracker = BackgroundProcessTracker(this)
-        
+
         restoreWidgetIfUpdated()
 
         TrackingService.start(this)
 
+        // [03] Cancel the old job name before using the newer schedule, so an app update does not leave
+        // both running.
         WorkManager.getInstance(this).cancelUniqueWork(WORKER_NAME)
         DailyFootprintWorker.scheduleNext(this)
     }
 
+    // [04] An app update should keep the latest saved garden visible on the Home Screen, rather than
+    // starting it over.
     private fun restoreWidgetIfUpdated() {
         val prefs = getSharedPreferences("dfe_prefs", MODE_PRIVATE)
         val lastVersion = prefs.getLong("last_known_version", 0L)
@@ -87,6 +84,8 @@ class DFEApplication : Application() {
                         GardenWidget.updateState(this@DFEApplication, latestState)
                         Log.d(TAG, "Widget restored after update")
                     }
+                // [05] A widget restoration problem is logged, but it should not stop the Android app from
+                // opening.
                 } catch (e: Exception) {
                     Log.e(TAG, "Error restoring widget after update", e)
                 }

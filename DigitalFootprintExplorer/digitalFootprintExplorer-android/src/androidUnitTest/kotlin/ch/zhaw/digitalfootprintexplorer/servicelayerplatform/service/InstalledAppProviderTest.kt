@@ -32,6 +32,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+// [01] These tests use pretend Android app records to check category choices without reading a real
+// installed-app list.
 class InstalledAppProviderTest {
 
     private val packageManager = mockk<PackageManager> {
@@ -45,6 +47,8 @@ class InstalledAppProviderTest {
     private val launcherAppQuery = mockk<LauncherAppQuery>()
 
     @Test
+    // [02] Visible app names and Android identities should survive the lookup, so later traffic matching
+    // uses the intended records.
     fun testGetInstalledLauncherApps() {
         val installedAppProvider = InstalledAppProvider(launcherAppQuery = launcherAppQuery)
 
@@ -88,6 +92,8 @@ class InstalledAppProviderTest {
     }
 
     @Test
+    // [03] Apps sharing a traffic identity must not be counted twice when the model later adds their
+    // network use.
     fun testGetInstalledLauncherAppsWithoutDuplicates() {
         val installedAppProvider = InstalledAppProvider(launcherAppQuery = launcherAppQuery)
 
@@ -143,6 +149,7 @@ class InstalledAppProviderTest {
     }
 
     @Test
+    // [04] Named AI apps need the specific model category even when Android only gives a broad one.
     fun testGetInstalledLauncherAppsWithArtificialIntelligenceCategory() {
         val installedAppProvider = InstalledAppProvider(
             launcherAppQuery = launcherAppQuery
@@ -171,6 +178,7 @@ class InstalledAppProviderTest {
     }
 
     @Test
+    // [05] The named mail exception should reach the email category rather than the broad system category.
     fun testGetInstalledLauncherAppsWithEMailCategory() {
         val installedAppProvider = InstalledAppProvider(launcherAppQuery = launcherAppQuery)
 
@@ -197,6 +205,7 @@ class InstalledAppProviderTest {
     }
 
     @Test
+    // [06] The messaging exception keeps chat activity separate from other broad Android groups.
     fun testGetInstalledLauncherAppsWithMessagingCategory() {
         val installedAppProvider = InstalledAppProvider(launcherAppQuery = launcherAppQuery)
 
@@ -223,6 +232,8 @@ class InstalledAppProviderTest {
     }
 
     @Test
+    // [07] The video-call exception should use the power assumptions for calls instead of an unrelated
+    // system group.
     fun testGetInstalledLauncherAppsWithVideoCallCategory() {
         val installedAppProvider = InstalledAppProvider(launcherAppQuery = launcherAppQuery)
 
@@ -248,6 +259,8 @@ class InstalledAppProviderTest {
         assertEquals(AppCategory.VIDEO_CALL, apps[0].category)
     }
 
+    // [08] Small made-up app records keep each test focused on the category decision, not on Android's app
+    // installation process.
     private fun createApplicationInfo(
         uid: Int,
         category: Int,

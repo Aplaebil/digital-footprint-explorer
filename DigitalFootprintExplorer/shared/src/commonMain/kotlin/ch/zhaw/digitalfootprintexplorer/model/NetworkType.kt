@@ -17,6 +17,8 @@
 
 package ch.zhaw.digitalfootprintexplorer.model
 
+// [01] Keep Wi-Fi and mobile data separate because the same traffic volume has a different model energy
+// cost on each.
 enum class NetworkType {
     WIFI,
     CELLULAR

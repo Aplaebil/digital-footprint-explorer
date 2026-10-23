@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+// [01] This builds the Android reference app with its screens, daily work and garden widget.
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
@@ -14,6 +15,7 @@ kotlin {
         }
     }
 
+    // [02] Android-only tools stay here, while the shared model remains available to both phone platforms.
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
@@ -52,6 +54,7 @@ android {
         buildConfig = true
     }
 
+    // [03] These values identify the installed Android app and tell Android which releases it can run.
     defaultConfig {
         applicationId = "ch.zhaw.digitalfootprintexplorer"
         minSdk = libs.versions.android.minSdk.get().toInt()
@@ -75,6 +78,8 @@ android {
     }
 }
 
+// [04] Preview and test tools belong to development; they help check the app without becoming user
+// features.
 dependencies {
     debugImplementation(libs.compose.uiTooling)
     testImplementation("io.mockk:mockk:1.13.13")

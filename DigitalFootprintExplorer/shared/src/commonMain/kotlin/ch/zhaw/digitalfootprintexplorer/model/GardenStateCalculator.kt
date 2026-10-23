@@ -21,35 +21,12 @@ import ch.zhaw.digitalfootprintexplorer.database.DFEDatabase
 import ch.zhaw.digitalfootprintexplorer.model.output.CategoryEmission
 import kotlinx.datetime.LocalDate
 
-/**
- * Stores daily footprint history and calculates [GardenState]
- * by comparing today's value against a rolling baseline.
- *
- * Intended usage per day:
- *  1. Call [calculateGardenState] with today's kgCO₂e to get the state.
- *  2. Call [recordDailyFootprint] to persist today's value.
- *
- * Phase logic:
- *  - 0 entries stored   → Day 1, no comparison possible → STABLE
- *  - 1–6 entries stored → compare against average of all stored entries
- *  - ≥7 entries stored  → compare against average of the last 7 entries only
- */
+// [01] The Android garden compares a day with earlier saved days, so its appearance reflects change from
+// recent use.
 class GardenStateCalculator(private val database: DFEDatabase) {
 
-    /**
-     * Persists a daily footprint entry and its per-category breakdown.
-     * All entries are kept permanently — no rolling window deletion.
-     *
-     * @param date              The calendar day of the measurement.
-     * @param kgCO2e            Total footprint used for baseline comparisons.
-     * @param ghgAppUsage       CO₂e from app network/device usage [kgCO₂e].
-     * @param ghgDisplay        CO₂e from screen energy [kgCO₂e].
-     * @param ghgBackground     CO₂e from background processes [kgCO₂e].
-     * @param measuredAt        ISO-8601 timestamp of when the measurement was taken.
-     * @param gardenState       The garden state derived from this day's footprint.
-     * @param baselineKgCO2e    The rolling baseline used to derive the garden state.
-     * @param categoryBreakdown Per-category emission breakdown to store in DailyEmissionCategory.
-     */
+    // [02] Save the total and its categories together under the same date, keeping the details traceable to
+    // their daily result.
     fun recordDailyFootprint(
         date: LocalDate,
         kgCO2e: Double,
@@ -71,16 +48,15 @@ class GardenStateCalculator(private val database: DFEDatabase) {
         }
     }
 
-    /**
-     * Returns the [GardenState] and the baseline used for [todayFootprint].
-     * Must be called *before* [recordDailyFootprint] for the same day so that
-     * today's value is never included in its own baseline.
-     *
-     * @return Pair of (state, baselineKgCO2e). Baseline is 0.0 on day 1 (no history).
-     */
+    // [03] Call this before saving the new day. A day must not be included in the average it is compared
+    // with.
     fun calculateGardenState(todayFootprint: Double): Pair<GardenState, Double> {
         val count = database.dailyFootprintQueries.count().executeAsOne()
+        // [04] Without earlier days there is no personal comparison yet, so the first garden starts in the
+        // stable state.
         if (count == 0L) return GardenState.STABLE to 0.0
+        // [05] Use all earlier days at first, then only the latest seven for the comparison. Older history
+        // remains saved.
         val entries = if (count >= 7L) {
             database.dailyFootprintQueries.selectLatest7().executeAsList()
         } else {
@@ -90,18 +66,13 @@ class GardenStateCalculator(private val database: DFEDatabase) {
         return fromDeviation(todayFootprint, baseline) to baseline
     }
 
-    /**
-     * Returns the [GardenState] stored for the most recent day, or null if no entries exist.
-     * Used to restore the widget state after demo mode is deactivated.
-     */
+    // [06] Returning from a demo should restore the real latest garden; an unreadable saved state is
+    // treated as absent.
     fun getLatestGardenState(): GardenState? {
         val latest = database.dailyFootprintQueries.selectLatest().executeAsOneOrNull()
         return latest?.garden_state?.let { runCatching { GardenState.valueOf(it) }.getOrNull() }
     }
 
-    /**
-     * Returns the latest recorded footprint entry, or null if no history exists.
-     */
     fun getLatestEntry(): DailyFootprintEntry? {
         val latest = database.dailyFootprintQueries.selectLatest().executeAsOneOrNull() ?: return null
         return DailyFootprintEntry(
@@ -114,10 +85,13 @@ class GardenStateCalculator(private val database: DFEDatabase) {
         )
     }
 
+    // [07] The daily worker checks the most recent saved date so it can skip an already completed day.
     fun isDailyFootprintCalculated(date: LocalDate): Boolean {
         return database.dailyFootprintQueries.selectLatest().executeAsOneOrNull()?.date == date.toString()
     }
 
+    // [08] Lower estimates lead to a healthier garden relative to the saved average. These ranges are model
+    // feedback, not proof of ecological change.
     private fun fromDeviation(today: Double, baseline: Double): GardenState {
         val percentage = (today - baseline) / baseline
         return when {

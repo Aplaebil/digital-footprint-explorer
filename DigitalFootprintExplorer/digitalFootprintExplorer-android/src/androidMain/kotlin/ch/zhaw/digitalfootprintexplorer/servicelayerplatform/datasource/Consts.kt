@@ -17,6 +17,8 @@
 
 package ch.zhaw.digitalfootprintexplorer.servicelayerplatform.datasource
 
+// [01] Some known apps need a more specific category than Android provides. This list handles those named
+// cases only.
 val APP_CATEGORY_CONFIG: Map<String, List<String>> = mapOf(
     "AI" to listOf(
         "com.openai.chatgpt",

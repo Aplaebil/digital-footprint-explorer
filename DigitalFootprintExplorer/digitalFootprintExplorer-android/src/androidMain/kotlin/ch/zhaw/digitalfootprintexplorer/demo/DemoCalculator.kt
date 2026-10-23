@@ -30,42 +30,12 @@ import ch.zhaw.digitalfootprintexplorer.model.input.DisplayInput
 import ch.zhaw.digitalfootprintexplorer.model.output.EmissionResult
 import ch.zhaw.digitalfootprintexplorer.servicelayerplatform.service.BackgroundProcessTracker
 
-/**
- * Demo-mode emissions calculator.
- *
- * Uses [TrafficStats.getTotalRxBytes] / [TrafficStats.getTotalTxBytes] for network tracking.
- * Note: since Android 10, per-UID traffic stats ([TrafficStats.getUidRxBytes]) are restricted
- * for foreign UIDs via SELinux — they return [TrafficStats.UNSUPPORTED]. Total device bytes
- * are still accessible and give a reliable real-time delta.
- *
- * Workflow:
- *  1. Demo activated → [resetBaseline] snapshots current total byte-count.
- *  2. User presses "Gartenzustand aktualisieren" → [calculate] computes the delta
- *     since the last baseline, evaluates emissions, and immediately stores a new
- *     baseline for the next press.
- *
- * This means each button press answers the question:
- * "What did the phone emit since I last pressed this button?"
- *
- * **Baseline persistence:** the three baseline values are saved to SharedPreferences
- * so they survive process restarts (e.g. the app being opened via widget click).
- * Opening the app does NOT reset the baseline — only toggling demo OFF→ON does.
- * There is no in-memory mirror; every operation reads directly from SharedPreferences
- * so the object is stateless and process-restart safe.
- *
- * Display is intentionally excluded from the demo calculation: during a live demo
- * the screen is always on, making the display a constant background noise that
- * drowns out the app-usage effect the demo is meant to illustrate.
- * Background processes (GPS/BT) are still included — they are small compared to
- * network traffic and can genuinely be caused by the apps being demonstrated.
- *
- */
+// [01] This Android demonstration shows changes over a short period; it is separate from the daily history
+// calculation.
 object DemoCalculator {
 
-    /**
-     * Snapshots the current byte-counts as the new baseline and persists them.
-     * Call this when the user actively toggles demo ON (not on app open).
-     */
+    // [02] A new demo starts from the current traffic counter, like taking a meter reading before a short
+    // experiment.
     fun resetBaseline(context: Context) {
         val ts    = System.currentTimeMillis()
         val total = totalDeviceBytes()
@@ -78,10 +48,7 @@ object DemoCalculator {
             }
     }
 
-    /**
-     * Clears the persisted baseline.
-     * Call this when demo is toggled OFF so the next activation starts clean.
-     */
+    // [03] Leaving the demo clears its starting readings so the next experiment cannot reuse an old period.
     fun clearBaseline(context: Context) {
         context.getSharedPreferences(DemoPreferences.PREFS_CALCULATOR_FILE, Context.MODE_PRIVATE)
             .edit {
@@ -91,15 +58,8 @@ object DemoCalculator {
             }
     }
 
-    /**
-     * Calculates emissions for the period since the last [resetBaseline] / [calculate] call:
-     *  - Network:     total device [TrafficStats] delta (real-time, works on all Android versions)
-     *  - Display:     excluded — always-on screen during demo would mask the app-usage signal
-     *  - Background:  GPS/BT intervals via [BackgroundProcessTracker.peek]
-     *
-     * After the calculation a new baseline is stored automatically so the next
-     * button press measures a fresh delta.
-     */
+    // [04] The demo uses total phone traffic rather than claiming an app-by-app breakdown. Display energy
+    // is left out here.
     suspend fun calculate(context: Context): Pair<EmissionResult, GardenState> {
         val dfeApp            = context.applicationContext as DFEApplication
         val backgroundTracker: BackgroundProcessTracker = dfeApp.backgroundProcessTracker
@@ -114,8 +74,12 @@ object DemoCalculator {
 
         val currentTotal = totalDeviceBytes()
         val currentDfe   = ownAppBytes(context)
+        // [05] Counters can restart or become unavailable. Negative changes should not turn into negative
+        // traffic.
         val totalDelta   = maxOf(0L, currentTotal - baselineTotal)
         val dfeDelta     = maxOf(0L, currentDfe   - baselineDfe)
+        // [06] Subtract DFE traffic from the phone total so the demonstration does not mainly reflect its
+        // own activity.
         val deltaBytes   = maxOf(0L, totalDelta   - dfeDelta)
         val networkMetrics: List<AppUsageInput> = if (deltaBytes > 0L) listOf(
             AppUsageInput(
@@ -126,6 +90,7 @@ object DemoCalculator {
             )
         ) else emptyList()
 
+        // [07] Save the new meter reading after this result; the next refresh then covers a fresh period.
         prefs.edit {
             putLong(DemoPreferences.KEY_BASELINE_TS, toMs)
             putLong(DemoPreferences.KEY_BASELINE_TOTAL, currentTotal)
@@ -143,6 +108,8 @@ object DemoCalculator {
         return result to gardenState
     }
 
+    // [08] Unsupported traffic readings are not useful measurements. This demo uses zero for those missing
+    // counters.
     private fun totalDeviceBytes(): Long {
         val rx = TrafficStats.getTotalRxBytes()
         val tx = TrafficStats.getTotalTxBytes()
@@ -160,11 +127,8 @@ object DemoCalculator {
         return validRx + validTx
     }
 
-    /**
-     * Evaluates [kgCO2e] against absolute thresholds calibrated for a short
-     * measurement window instead of comparing against the 7-day baseline used in
-     * production.
-     */
+    // [09] A short demonstration needs its own fixed ranges. These are not the normal seven-day history
+    // comparison.
     private fun calculateDemoGardenState(kgCO2e: Double): GardenState = when {
         kgCO2e < 5e-6   -> GardenState.FLOURISHING
         kgCO2e < 2e-5   -> GardenState.GROWING

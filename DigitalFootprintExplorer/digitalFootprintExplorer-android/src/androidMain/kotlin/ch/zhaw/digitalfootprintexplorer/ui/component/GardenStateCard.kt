@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import ch.zhaw.digitalfootprintexplorer.R
 import ch.zhaw.digitalfootprintexplorer.model.GardenState
 
+// [01] The garden turns a daily comparison into a picture, while its text keeps the meaning readable.
 @Composable
 fun GardenStateCard(state: GardenState?) {
     val imageRes = when (state) {
@@ -50,6 +51,8 @@ fun GardenStateCard(state: GardenState?) {
         null -> R.drawable.garden_state_3_stable
     }
 
+    // [02] An unknown result gets an unknown label, even though a faded garden image is used as its
+    // placeholder.
     val statusText = when (state) {
         GardenState.FLOURISHING -> stringResource(R.string.garden_state_flourishing)
         GardenState.GROWING -> stringResource(R.string.garden_state_growing)

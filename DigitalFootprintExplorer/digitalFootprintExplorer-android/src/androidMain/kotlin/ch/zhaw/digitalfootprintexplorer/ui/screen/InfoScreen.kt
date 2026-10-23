@@ -48,6 +48,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import ch.zhaw.digitalfootprintexplorer.ui.theme.Spacing
 
+// [01] Keep the Android project background, installed version and disclaimer link together for people who
+// want more context.
 @Composable
 fun InfoScreen(innerPadding: PaddingValues) {
     val context = LocalContext.current
@@ -73,6 +75,7 @@ fun InfoScreen(innerPadding: PaddingValues) {
                     .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // [02] Leave clear space around the university logo so nearby text does not crowd it.
                 val logoHeight = 48.dp
                 val logoClearSpace = logoHeight / 3
 
@@ -155,6 +158,8 @@ fun InfoScreen(innerPadding: PaddingValues) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // [03] The disclaimer opens the public project page, giving the user a way to read
+                    // beyond this short screen.
                     .clickable {
                         context.startActivity(
                             Intent(Intent.ACTION_VIEW, Uri.parse("https://zhaw-init-softwareengineering.github.io/digital-footprint-explorer/"))

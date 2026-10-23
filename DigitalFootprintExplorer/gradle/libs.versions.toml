@@ -1,3 +1,5 @@
+# [01] The build tools and libraries take their version choices from this list, so changes can be reviewed in
+# one place.
 [versions]
 agp = "8.11.2"
 composeM3 = "3.1.0"
@@ -21,6 +23,8 @@ workManager = "2.10.1"
 compose-googleFonts = "1.8.0"
 materialIconsExtended = "1.7.3"
 
+# [02] Named library choices connect the Android screens, tests, local database and shared model to their
+# intended packages.
 [libraries]
 compose = { module = "com.patrykandpatrick.vico:compose", version.ref = "composeM3" }
 compose-m3 = { module = "com.patrykandpatrick.vico:compose-m3", version.ref = "composeM3" }
@@ -51,6 +55,7 @@ sqldelight-nativeDriver = { module = "app.cash.sqldelight:native-driver", versio
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 
+# [03] Build scripts refer to these tool names instead of repeating each tool's version in every module.
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- [01] The Android launcher icon uses this shared dark background behind its garden artwork. -->
     <color name="ic_launcher_background">#1B211E</color>
 </resources>

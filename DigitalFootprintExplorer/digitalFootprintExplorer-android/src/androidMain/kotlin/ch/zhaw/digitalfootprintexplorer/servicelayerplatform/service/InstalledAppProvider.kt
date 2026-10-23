@@ -26,6 +26,7 @@ import ch.zhaw.digitalfootprintexplorer.servicelayerplatform.datasource.Launcher
 import ch.zhaw.digitalfootprintexplorer.model.AppCategory
 import ch.zhaw.digitalfootprintexplorer.servicelayerplatform.model.App
 
+// [01] Give each launchable Android app a display name and a model category before collecting its usage.
 class InstalledAppProvider(
     private val launcherAppQuery: LauncherAppQuery = AndroidLauncherAppQuery()
 ) {
@@ -36,15 +37,17 @@ class InstalledAppProvider(
                 val appInfo = resolveInfo.activityInfo.applicationInfo
                 generateApp(context = context, applicationInfo = appInfo)
             }
-            /* Remove duplicates because one UID can have multiple package names, */
-            /* e.g. com.google.android.youtube and com.google.android.apps.youtube share a UID. */
+
+            // [02] Several visible apps can share one Android traffic identity. Counting that identity
+            // twice would inflate traffic.
             .distinctBy { it.uid }
     }
 
     private fun generateApp(context: Context, applicationInfo: ApplicationInfo): App {
         val foundCategory = compareAppCategoryConfigWithPackageName(packageName = applicationInfo.packageName)
-        /* Use PackageManager.getApplicationLabel() to obtain the localised, user-visible app name. */
-        /* Falls back to the package name if the label cannot be resolved. */
+
+        // [03] A readable local app name is easier to recognise. The package name is a fallback if Android
+        // cannot supply a label.
         val appName = runCatching {
             context.packageManager.getApplicationLabel(applicationInfo).toString()
         }.getOrDefault(applicationInfo.packageName)
@@ -57,11 +60,7 @@ class InstalledAppProvider(
         )
     }
 
-    /**
-     * This method is used to select the app category from the applicationInfo.category field.
-     * @param applicationInfo the applicationInfo object from the AndroidManifest file.
-     * @return the app category.
-     */
+    // [04] Use Android's category when available; apps without a supported category stay in Other.
     private fun selectAppCategory(applicationInfo: ApplicationInfo): AppCategory {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return AppCategory.MISCELLANEOUS
 
@@ -78,11 +77,6 @@ class InstalledAppProvider(
         }
     }
 
-    /**
-     * This method is used to select the app category from the appCategoryConfig.json file.
-     * @param category the category from the appCategoryConfig.json file.
-     * @return the app category.
-     */
     private fun selectAppCategoryFromAppCategoryConfig(category: String): AppCategory {
         return when(category) {
             "AI" -> AppCategory.ARTIFICIAL_INTELLIGENCE
@@ -93,6 +87,7 @@ class InstalledAppProvider(
         }
     }
 
+    // [05] Known named exceptions take priority, but an unlisted app must still have a category.
     private fun compareAppCategoryConfigWithPackageName(packageName: String): AppCategory {
         APP_CATEGORY_CONFIG.forEach {
             (category, packageNames) -> if (packageName in packageNames)

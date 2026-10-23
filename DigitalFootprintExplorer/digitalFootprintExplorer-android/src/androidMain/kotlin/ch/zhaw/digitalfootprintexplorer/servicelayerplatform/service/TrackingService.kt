@@ -34,18 +34,8 @@ import androidx.core.content.ContextCompat
 import ch.zhaw.digitalfootprintexplorer.DFEApplication
 import ch.zhaw.digitalfootprintexplorer.R
 
-/**
- * Foreground Service that hosts [DisplayBrightnessObserver] and [BackgroundProcessTracker]
- * so that brightness intervals and GPS/Bluetooth durations are recorded continuously —
- * even when the app is not in the foreground.
- *
- * Additionally listens for [Intent.ACTION_SCREEN_OFF] / [Intent.ACTION_SCREEN_ON] and
- * forwards these events to [DisplayBrightnessObserver] so that display-off periods are
- * correctly attributed a brightness of 0.0 in the emissions formula.
- *
- * The service is started from [DFEApplication.onCreate] and restarted after device reboots
- * by [BootReceiver]. [START_STICKY] ensures Android restarts it automatically if killed.
- */
+// [01] Android keeps these observers in a visible ongoing service so screen and switch changes can be
+// recorded between visits.
 class TrackingService : Service() {
 
     private lateinit var brightnessObserver: DisplayBrightnessObserver
@@ -63,6 +53,8 @@ class TrackingService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        // [02] The ongoing notification tells Android and the user that tracking is active; it is not the
+        // daily garden update.
         startForeground(NOTIFICATION_ID, buildNotification())
 
         val app = applicationContext as DFEApplication
@@ -83,6 +75,8 @@ class TrackingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
+    // [03] Stop listening when the service ends, so old listeners do not keep receiving the same system
+    // events.
     override fun onDestroy() {
         super.onDestroy()
         runCatching { unregisterReceiver(screenReceiver) }
@@ -122,6 +116,8 @@ class TrackingService : Service() {
                     context,
                     Intent(context, TrackingService::class.java)
                 )
+            // [04] Android may refuse a background service start. In that case the next app visit can try
+            // again; other errors still surface.
             } catch (e: Exception) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                     e is ForegroundServiceStartNotAllowedException) {

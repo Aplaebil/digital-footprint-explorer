@@ -19,9 +19,12 @@ package ch.zhaw.digitalfootprintexplorer.database
 
 import app.cash.sqldelight.db.SqlDriver
 
-expect class DatabaseDriverFactory {
+// [01] The shared history code asks for a database connection; each phone platform supplies its own.
+interface DatabaseDriverProvider {
     fun createDriver(): SqlDriver
 }
 
-fun createDatabase(factory: DatabaseDriverFactory): DFEDatabase =
+// [02] Build the history store through that platform connection instead of giving the calculation code
+// phone-specific details.
+fun createDatabase(factory: DatabaseDriverProvider): DFEDatabase =
     DFEDatabase(factory.createDriver())

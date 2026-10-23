@@ -17,17 +17,15 @@
 
 package ch.zhaw.digitalfootprintexplorer.model
 
-/**
- * Represents an input value with its data quality.
- * Measured: directly measured by the OS.
- * Estimated: scientifically justified estimate as fallback.
- * Unavailable: value cannot be determined, no fallback available → treated as 0.0.
- */
+// [01] Keep measured, assumed and missing values different. A result should not hide where its inputs came
+// from.
 sealed class DataPoint {
     data class Measured(val value: Double) : DataPoint()
     data class Estimated(val value: Double, val reason: String) : DataPoint()
     data class Unavailable(val reason: String) : DataPoint()
 
+    // [02] The model needs a number to add. A missing value uses the caller's fallback, zero by default,
+    // rather than becoming a measurement.
     fun valueOrDefault(default: Double = 0.0): Double = when (this) {
         is Measured -> value
         is Estimated -> value

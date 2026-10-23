@@ -17,6 +17,8 @@
 
 package ch.zhaw.digitalfootprintexplorer.model
 
+// [01] These five states let the same daily comparison drive the garden picture, widget and written
+// summary.
 enum class GardenState {
     FLOURISHING,
     GROWING,

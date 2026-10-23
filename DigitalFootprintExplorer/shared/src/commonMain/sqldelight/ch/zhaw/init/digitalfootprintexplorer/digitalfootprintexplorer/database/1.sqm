@@ -1,2 +1,4 @@
+-- [01] Older saved days need values for the new garden fields to remain readable. Stable and zero are
+-- migration defaults, not new measurements.
 ALTER TABLE DailyFootprintEntry ADD COLUMN gardenState TEXT NOT NULL DEFAULT 'STABLE';
 ALTER TABLE DailyFootprintEntry ADD COLUMN baselineKgCO2e REAL NOT NULL DEFAULT 0;

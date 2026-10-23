@@ -22,14 +22,17 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 
-actual class DatabaseDriverFactory(private val context: Context) {
-    actual fun createDriver(): SqlDriver =
+// [01] Open the Android history database locally, using the same table definitions as the shared model.
+class DatabaseDriverFactory(private val context: Context) : DatabaseDriverProvider {
+    override fun createDriver(): SqlDriver =
         AndroidSqliteDriver(
             schema = DFEDatabase.Schema,
             context = context,
             name = "dfe.db",
             callback = object : AndroidSqliteDriver.Callback(DFEDatabase.Schema) {
                 override fun onOpen(db: SupportSQLiteDatabase) {
+                    // [02] Related database rows should stay linked, so a category detail cannot quietly
+                    // refer to a missing daily entry.
                     db.execSQL("PRAGMA foreign_keys = ON")
                 }
             }

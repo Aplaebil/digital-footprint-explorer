@@ -19,6 +19,8 @@ package ch.zhaw.digitalfootprintexplorer.ui.theme
 
 import androidx.compose.ui.unit.dp
 
+// [01] A shared gap keeps related Android sections spaced alike, so each screen does not invent its own
+// distance.
 object Spacing {
      val gutter = 16.dp
 }

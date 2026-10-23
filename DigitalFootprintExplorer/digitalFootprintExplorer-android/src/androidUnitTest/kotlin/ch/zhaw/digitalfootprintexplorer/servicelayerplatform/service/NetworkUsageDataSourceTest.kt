@@ -31,6 +31,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @Ignore("This will be tested in the compose app itself, because mockk is too complicated to be used here")
+// [01] These checks supply a pretend Android traffic service, so no phone account or real app traffic is
+// needed.
 class NetworkUsageDataSourceTest {
 
     private val installedAppProvider = mockk<InstalledAppProvider>()
@@ -40,6 +42,8 @@ class NetworkUsageDataSourceTest {
     private val bucket = mockk<NetworkStats.Bucket>()
 
     @Test
+    // [02] The expected result includes incoming and outgoing traffic. This is an Android service test with
+    // made-up byte counts.
     fun testGetUsageBytes() = runTest {
         setUpMocks()
         val networkUsageDataSource = NetworkUsageDataSource(context)
@@ -54,6 +58,7 @@ class NetworkUsageDataSourceTest {
         assertEquals(2000000L, totalBytes)
     }
 
+    // [03] Fixed service answers keep personal phone traffic out of the test.
     private fun setUpMocks(
         rxByte: Long = 1000000L,
         txByte: Long = 1000000L
@@ -69,6 +74,8 @@ class NetworkUsageDataSourceTest {
                 any())
         } returns networkStats
 
+        // [04] This existing test always says another block is available. A finite sequence is still needed
+        // to check completion.
         every { networkStats.hasNextBucket() } returns true
         every { networkStats.getNextBucket(bucket) } returns true
         every { bucket.rxBytes } returns rxByte

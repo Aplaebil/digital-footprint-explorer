@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
+// [01] Match named light colours to their screen roles, such as text, backgrounds and buttons.
 private val lightScheme = lightColorScheme(
     primary = primaryLight,
     onPrimary = onPrimaryLight,
@@ -62,6 +63,8 @@ private val lightScheme = lightColorScheme(
     surfaceContainerHighest = surfaceContainerHighestLight,
 )
 
+// [02] The dark palette uses separate text and surface pairs, keeping the same roles across the Android
+// screens.
 private val darkScheme = darkColorScheme(
     primary = primaryDark,
     onPrimary = onPrimaryDark,
@@ -100,6 +103,7 @@ private val darkScheme = darkColorScheme(
     surfaceContainerHighest = surfaceContainerHighestDark,
 )
 
+// [03] These extra palettes keep contrast choices defined in one place; defining them does not select them.
 private val mediumContrastLightColorScheme = lightColorScheme(
     primary = primaryLightMediumContrast,
     onPrimary = onPrimaryLightMediumContrast,
@@ -252,6 +256,8 @@ private val highContrastDarkColorScheme = darkColorScheme(
     surfaceContainerHighest = surfaceContainerHighestDarkHighContrast,
 )
 
+// [04] A colour family keeps a main colour and its matching foregrounds together when a component needs
+// them.
 @Immutable
 data class ColorFamily(
     val color: Color,
@@ -264,6 +270,8 @@ val unspecified_scheme = ColorFamily(
     Color.Unspecified, Color.Unspecified, Color.Unspecified, Color.Unspecified
 )
 
+// [05] The Android reference app currently selects its dark palette here, with shared fonts and card
+// shapes.
 @Composable
 fun DFETheme(
     content: @Composable() () -> Unit

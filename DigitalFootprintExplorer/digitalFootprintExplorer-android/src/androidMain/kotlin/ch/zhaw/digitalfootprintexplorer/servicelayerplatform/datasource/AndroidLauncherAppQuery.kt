@@ -21,6 +21,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ResolveInfo
 
+// [01] Use Android's list of launchable apps as the starting point for the reference app's usage lookup.
 class AndroidLauncherAppQuery: LauncherAppQuery {
     override fun create(context: Context): List<ResolveInfo> {
         val intent = Intent(Intent.ACTION_MAIN).apply {

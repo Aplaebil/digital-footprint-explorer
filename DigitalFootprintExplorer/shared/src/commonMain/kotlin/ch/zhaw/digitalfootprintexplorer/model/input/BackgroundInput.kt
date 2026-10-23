@@ -19,6 +19,8 @@ package ch.zhaw.digitalfootprintexplorer.model.input
 
 import ch.zhaw.digitalfootprintexplorer.model.ProcessUsage
 
+// [01] Background services remain a separate contribution, rather than being mixed into screen time or app
+// traffic.
 data class BackgroundInput(
     val activeProcesses: List<ProcessUsage>
 )

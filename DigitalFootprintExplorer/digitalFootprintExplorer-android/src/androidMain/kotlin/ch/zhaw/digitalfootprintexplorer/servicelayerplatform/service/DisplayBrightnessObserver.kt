@@ -28,38 +28,21 @@ import ch.zhaw.digitalfootprintexplorer.model.input.BrightnessInterval
 import ch.zhaw.digitalfootprintexplorer.model.input.DisplayInput
 import androidx.core.content.edit
 
-/**
- * Observes [Settings.System.SCREEN_BRIGHTNESS] changes and Screen On/Off events,
- * accumulating timestamped [BrightnessInterval]s for use in [EmissionsCalculator.calculate].
- *
- * Each interval stores the normalized brightness and a start/end timestamp so that
- * [collectAndReset] can clip intervals to any arbitrary calendar-day window — ensuring
- * the daily emissions calculation always covers exactly 24 h regardless of when the
- * [DailyFootprintWorker] happens to run.
- *
- * When the display is off the brightness is recorded as 0.0, which correctly contributes
- * zero display energy to the formula E_Display = P_Display * Σ(B̃_i * Δt_i).
- *
- * Intervals are persisted in SharedPreferences so they survive app restarts.
- *
- * Lifecycle (managed by [TrackingService]):
- *  - Call [register] when the service starts.
- *  - Call [onScreenOff] / [onScreenOn] from a BroadcastReceiver in the service.
- *  - Call [unregister] when the service is destroyed.
- *  - Call [collectAndReset] from [DailyFootprintWorker] with yesterday's boundaries.
- */
+// [01] The Android screen estimate needs brightness over time, rather than just the brightness when the
+// daily job runs.
 class DisplayBrightnessObserver(private val context: Context) {
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    /* In-memory state of the currently open interval */
     private var currentBrightness: Double = 0.0
     private var intervalStartMs: Long = System.currentTimeMillis()
     private var screenOn: Boolean = true
 
     private val contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
-            if (!screenOn) return          /* ignore changes while screen is off */
+            // [02] A brightness setting can change while the screen is off. That must not add energy for a
+            // screen that is dark.
+            if (!screenOn) return
             val now = System.currentTimeMillis()
             flushInterval(now)
             currentBrightness = readCurrentBrightness()
@@ -82,7 +65,8 @@ class DisplayBrightnessObserver(private val context: Context) {
         context.contentResolver.unregisterContentObserver(contentObserver)
     }
 
-    /** Called by [TrackingService] when it receives [android.content.Intent.ACTION_SCREEN_OFF]. */
+    // [03] Close the lit period before recording darkness, so screen-off time does not use the previous
+    // brightness.
     fun onScreenOff() {
         val now = System.currentTimeMillis()
         flushInterval(now)
@@ -91,28 +75,20 @@ class DisplayBrightnessObserver(private val context: Context) {
         screenOn = false
     }
 
-    /** Called by [TrackingService] when it receives [android.content.Intent.ACTION_SCREEN_ON]. */
+    // [04] End the dark period before using the current brightness again.
     fun onScreenOn() {
         val now = System.currentTimeMillis()
-        flushInterval(now)          /* flush the 0.0 (screen-off) interval */
+        flushInterval(now)
         currentBrightness = readCurrentBrightness()
         intervalStartMs = now
         screenOn = true
     }
 
-    /**
-     * Flushes the current open interval, returns all [BrightnessInterval]s clipped to
-     * [fromMs]..[toMs] (yesterday midnight → today midnight), and clears stored state
-     * for the next day.
-     *
-     * Falls back to a single 24-hour interval at [DEFAULT_BRIGHTNESS] when no intervals
-     * are found within the window (e.g. first ever run, or observer was not running).
-     */
+    // [05] Only yesterday's part is used now. Later activity stays saved for the next daily calculation.
     fun collectAndReset(fromMs: Long, toMs: Long): DisplayInput {
         val now = System.currentTimeMillis()
         val originalStartMs = intervalStartMs
 
-        /* Flush the currently open interval only up to the end of the collection window */
         val flushEnd = minOf(now, toMs)
         if (flushEnd > originalStartMs) {
             appendInterval(currentBrightness, originalStartMs, flushEnd)
@@ -130,13 +106,8 @@ class DisplayBrightnessObserver(private val context: Context) {
             }
         }
 
-        /*
-         * If the currently open interval started before the collection window ended,
-         * continue it from toMs.
-         *
-         * If it started after toMs, keep its original start timestamp so already tracked
-         * data from the new day is not overwritten.
-         */
+        // [06] If a brightness period crosses the day boundary, continue it from that boundary without
+        // losing today's activity.
         intervalStartMs = when {
             now <= toMs -> now
             originalStartMs < toMs -> toMs
@@ -144,6 +115,8 @@ class DisplayBrightnessObserver(private val context: Context) {
         }
 
         return DisplayInput(
+            // [07] With no recorded periods, this Android path assumes a full day at half brightness. That
+            // is a fallback, not a reading.
             intervals = intervals.ifEmpty {
                 listOf(BrightnessInterval(normalizedBrightness = DEFAULT_BRIGHTNESS, durationH = 24.0))
             }
@@ -168,18 +141,14 @@ class DisplayBrightnessObserver(private val context: Context) {
         }.joinToString(",")
     }
 
-    /** Writes the current open interval [intervalStartMs, endMs) to SharedPreferences. */
     private fun flushInterval(endMs: Long) {
         if (endMs > intervalStartMs) {
             appendInterval(currentBrightness, intervalStartMs, endMs)
         }
     }
 
-    /**
-     * Appends one entry in the format "brightness:startMs:endMs" to SharedPreferences.
-     * Locale.ROOT is used explicitly so the brightness Double is always serialised with
-     * a dot as decimal separator, regardless of the device locale (e.g. German uses comma).
-     */
+    // [08] Use a decimal point in saved brightness values, so a phone language that uses commas cannot
+    // split a record by mistake.
     private fun appendInterval(brightness: Double, startMs: Long, endMs: Long) {
         val existing = prefs.getString(KEY_INTERVALS, "") ?: ""
         val entry    = String.format(Locale.ROOT, "%.10f:%d:%d", brightness, startMs, endMs)
@@ -187,10 +156,8 @@ class DisplayBrightnessObserver(private val context: Context) {
         prefs.edit { putString(KEY_INTERVALS, updated) }
     }
 
-    /**
-     * Parses stored intervals and clips each one to [fromMs]..[toMs].
-     * Entries that fall entirely outside the window are dropped.
-     */
+    // [09] Ignore unreadable records and trim valid ones to the requested day before they enter the
+    // calculation.
     private fun parseAndClip(raw: String, fromMs: Long, toMs: Long): List<BrightnessInterval> {
         if (raw.isBlank()) return emptyList()
         return raw.split(",").mapNotNull { entry ->

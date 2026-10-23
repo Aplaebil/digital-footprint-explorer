@@ -26,6 +26,8 @@ import ch.zhaw.digitalfootprintexplorer.model.NetworkType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+// [01] This reads the traffic Android makes available for one app and time window, away from the screen's
+// work.
 class NetworkUsageDataSource(
     private val context: Context
 ) {
@@ -60,16 +62,21 @@ class NetworkUsageDataSource(
                 var txBytes = 0L
                 val bucket = NetworkStats.Bucket()
 
+                // [02] The total needs both incoming and outgoing traffic across all returned time blocks.
                 while(stats.hasNextBucket()) {
                     stats.getNextBucket(bucket)
                     rxBytes += bucket.rxBytes
                     txBytes += bucket.txBytes
                 }
                 rxBytes + txBytes
+            // [03] If Android stops the lookup part way through, return no reading rather than a misleading
+            // partial total.
             } catch (e: RemoteException) {
                 e.printStackTrace()
                 null
             }
+        // [04] A blocked lookup remains missing data. The caller can then keep the access problem separate
+        // from zero usage.
         } catch (e: SecurityException) {
             e.printStackTrace()
             null

@@ -1,3 +1,5 @@
+<!-- [01] These are the Android reference app's German words. Resource names keep the screens connected to the
+     matching translations. -->
 <resources>
     <string name="home">
         Startseite
@@ -50,6 +52,8 @@
     <string name="garden_state_wilting">Welkend</string>
     <string name="garden_state_withered">Verdorrt</string>
     <string name="garden_state_unknown">Noch keine Auswertung. Dein Garten wächst über Nacht.</string>
+    <!-- [02] The daily garden message is separate from the ongoing service notice, which tells the user that
+         Android tracking is active. -->
     <string name="notification_title">Tägliche Verbrauchsbenachrichtigung</string>
     <string name="notification_state_flourishing">Dein Garten blüht auf. Dein digitaler Fussabdruck lag deutlich unter deinem Durchschnitt – weiter so.</string>
     <string name="notification_state_growing">Dein Garten wächst. Dein digitaler Fussabdruck hat sich verbessert – bleib dran.</string>
