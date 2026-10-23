@@ -32,5 +32,7 @@ dependencyResolutionManagement {
     }
 }
 
+// [04] Keep the Android module name stable while placing both apps in their own folders.
 include(":digitalFootprintExplorer-android")
+project(":digitalFootprintExplorer-android").projectDir = file("apps/android")
 include(":shared")

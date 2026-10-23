@@ -1,4 +1,4 @@
-// [01] Generated from the reviewed policy in iosApp/Configuration/PrivacyPolicyContent.json. Edit that source to update this local copy.
+// [01] Generated from the reviewed policy in apps/ios/Configuration/PrivacyPolicyContent.json. Edit that source to update this local copy.
 import Foundation
 
 // [02] Stable section names keep the privacy page in a clear, predictable reading order.

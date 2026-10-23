@@ -6,7 +6,7 @@
 local.properties
 **/local.properties
 **/xcuserdata/
-DigitalFootprintExplorer/iosApp/Configuration/Local.xcconfig
+apps/ios/Configuration/Local.xcconfig
 
 # [02] Keep generated builds, caches and test bundles out; source and database migrations stay visible.
 **/build/
@@ -54,3 +54,10 @@ docs/evidence/
 docs/pa/
 docs/apple/
 docs/validation/
+
+# [07] Platform tools can recreate these local editor and native-build files.
+*.iml
+**/captures/
+**/.externalNativeBuild/
+**/.cxx/
+**/xcshareddata/WorkspaceSettings.xcsettings

@@ -8,8 +8,8 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG = Path('DigitalFootprintExplorer/iosApp/Configuration/PrivacyPolicyContent.json')
-APP_POLICY = Path('DigitalFootprintExplorer/iosApp/iosApp/PrivacyPolicyContent.swift')
+CONFIG = Path('apps/ios/Configuration/PrivacyPolicyContent.json')
+APP_POLICY = Path('apps/ios/iosApp/PrivacyPolicyContent.swift')
 
 
 class PrivacyPolicyGenerationTests(unittest.TestCase):

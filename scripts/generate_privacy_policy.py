@@ -9,7 +9,7 @@ import json
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-CONTENT = ROOT / 'DigitalFootprintExplorer/iosApp/Configuration/PrivacyPolicyContent.json'
+CONTENT = ROOT / 'apps/ios/Configuration/PrivacyPolicyContent.json'
 
 
 # [02] Use the same escaping rules for policy text so quotes and accents remain readable in the app.
@@ -85,7 +85,7 @@ def outputs(document, *, include_web=False):
             ]
         )''')
     intro = ',\n        '.join(swift_string(paragraph) for paragraph in document['introduction'])
-    source = f'''// [01] Generated from the reviewed policy in iosApp/Configuration/PrivacyPolicyContent.json. Edit that source to update this local copy.
+    source = f'''// [01] Generated from the reviewed policy in apps/ios/Configuration/PrivacyPolicyContent.json. Edit that source to update this local copy.
 import Foundation
 
 // [02] Stable section names keep the privacy page in a clear, predictable reading order.
@@ -111,7 +111,7 @@ enum PrivacyPolicyContent {{
 }}
 '''
     generated = {
-        ROOT / 'DigitalFootprintExplorer/iosApp/iosApp/PrivacyPolicyContent.swift': source,
+        ROOT / 'apps/ios/iosApp/PrivacyPolicyContent.swift': source,
     }
     if include_web:
         generated.update({

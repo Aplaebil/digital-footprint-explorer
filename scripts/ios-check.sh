@@ -3,7 +3,7 @@
 set -euo pipefail
 # [02] Find the project from this script, allowing the check to run from another folder.
 repo_dir="$(cd "$(dirname "$0")/.." && pwd)"
-project_dir="$repo_dir/DigitalFootprintExplorer"
+project_dir="$repo_dir"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17)}"
 # [03] Keep build caches together and resolve their real paths; Kotlin can treat two spellings as different locations.
@@ -25,11 +25,14 @@ if [ -z "$simulator_id" ]; then
   echo "Install an iOS simulator runtime in Xcode Settings, then run this check again." >&2
   exit 1
 fi
-# [06] Check the shared calculation first, then run the native app tests with a separate result folder.
+# [06] Check the shared calculation first, then run controlled native tests without requesting personal Screen Time access.
 cd "$project_dir"
 ./gradlew :shared:iosSimulatorArm64Test --console=plain
 result_bundle="${DFE_RESULT_BUNDLE:-$cache_dir/ios-tests-$(date +%Y%m%d-%H%M%S).xcresult}"
-xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
+xcodebuild -project apps/ios/iosApp.xcodeproj -scheme iosApp-ScreenTime -configuration ScreenTimeDebug \
   -destination "platform=iOS Simulator,id=$simulator_id" -parallel-testing-enabled NO \
-  -derivedDataPath "$cache_dir/DerivedData" -resultBundlePath "$result_bundle" CODE_SIGNING_ALLOWED=NO test
+  -derivedDataPath "$cache_dir/DerivedData" -resultBundlePath "$result_bundle" CODE_SIGNING_ALLOWED=NO \
+  -only-testing:iosAppTests \
+  -skip-testing:iosAppTests/LiveScreenTimeImportTests \
+  -skip-testing:iosAppTests/LiveAllActivityImportTests test
 echo "Test results: $result_bundle"
