@@ -1,9 +1,16 @@
 .idea
+.DS_Store
 local.properties
+*.iml
+.gradle/
+.kotlin/
+**/build/
+.externalNativeBuild/
+.cxx/
 
 # iOS settings and local build output
-DigitalFootprintExplorer/iosApp/**/xcuserdata/
-DigitalFootprintExplorer/iosApp/DerivedData/
-DigitalFootprintExplorer/iosApp/Configuration/Local.xcconfig
-DigitalFootprintExplorer/iosApp/Configuration/Local.*.xcconfig
-DigitalFootprintExplorer/iosApp/**/*.xcresult/
+apps/ios/**/xcuserdata/
+apps/ios/DerivedData/
+apps/ios/Configuration/Local.xcconfig
+apps/ios/Configuration/Local.*.xcconfig
+apps/ios/**/*.xcresult/

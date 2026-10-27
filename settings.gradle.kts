@@ -28,5 +28,7 @@ dependencyResolutionManagement {
     }
 }
 
+// [01] Keep the Android build name stable while both apps sit in the apps folder.
 include(":digitalFootprintExplorer-android")
+project(":digitalFootprintExplorer-android").projectDir = file("apps/android")
 include(":shared")

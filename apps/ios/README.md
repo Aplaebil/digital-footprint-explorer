@@ -10,9 +10,9 @@ These previews use isolated example history. They show the interface, not measur
 
 ## Build and run
 
-Use a Mac with Xcode, the iOS 26.4 or later SDK, JDK 17 and an installed iPhone simulator. The app and widget require iOS 26.4 or later. The Gradle wrapper in `DigitalFootprintExplorer/` builds the neighbouring `shared/` module; there is no separate copy of the calculation model in Swift.
+Use a Mac with Xcode, the iOS 26.4 or later SDK, JDK 17 and an installed iPhone simulator. The app and widget require iOS 26.4 or later. The Gradle wrapper at the repository root builds the `shared/` module; there is no separate copy of the calculation model in Swift.
 
-1. Open `DigitalFootprintExplorer/iosApp/iosApp.xcodeproj` from the repository root.
+1. Open `apps/ios/iosApp.xcodeproj` from the repository root.
 2. Select `iosApp-ScreenTime`, then choose an iPhone simulator and run. Xcode builds the shared framework before the app.
 3. For a physical iPhone, copy `Configuration/Local.xcconfig.example` to `Configuration/Local.xcconfig`. Use your approved Apple team and matching app/widget identifiers, App Group and provisioning profiles. Keep this local signing file out of Git.
 4. On a supported device, choose **Enable automatic estimates** and complete Apple's authorization. No daily form or app-by-app selection is required. A completed day stays pending until Apple supplies usable activity.
@@ -34,17 +34,17 @@ The offline policy is in the app. Approved public privacy and support URLs still
 From the repository root:
 
 ```sh
-python3 -m unittest discover -s DigitalFootprintExplorer/iosApp/tests -v
-python3 DigitalFootprintExplorer/iosApp/scripts/generate_privacy_policy.py --check
-bash DigitalFootprintExplorer/iosApp/scripts/ios-check.sh
+python3 -m unittest discover -s apps/ios/tests -v
+python3 apps/ios/scripts/generate_privacy_policy.py --check
+bash apps/ios/scripts/ios-check.sh
 ```
 
-The last command runs the new shared iOS bridge tests and the controlled native unit tests. It does not claim a full shared-suite pass: the existing emission-calculator fixture correction is kept in a separate pull request for its own review. Set `DFE_SIMULATOR_ID` to choose a particular installed simulator. It writes an `.xcresult` bundle outside the repository by default and prints its path. These tests use isolated stores and do not request personal Screen Time access.
+The last command runs the full shared iOS-simulator calculation suite and the controlled native unit tests. This alternative branch includes the calculator test-fixture correction from PR #16, so the original model tests and the new iOS bridge tests run together. Set `DFE_SIMULATOR_ID` to choose a particular installed simulator. It writes an `.xcresult` bundle outside the repository by default and prints its path. These tests use isolated stores and do not request personal Screen Time access.
 
 To run the interface tests, replace the destination below with an installed iPhone simulator:
 
 ```sh
-xcodebuild -project DigitalFootprintExplorer/iosApp/iosApp.xcodeproj \
+xcodebuild -project apps/ios/iosApp.xcodeproj \
   -scheme iosApp-ScreenTime -configuration ScreenTimeDebug \
   -destination 'platform=iOS Simulator,name=iPhone 18 Pro Max' \
   -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
@@ -60,7 +60,7 @@ Edit the policy in `Configuration/PrivacyPolicyContent.json`, then run `scripts/
 `scripts/check-ios-release.py` inspects a built bundle or archive without uploading it or changing signing resources. Pass `--require-store` when a distribution signature, approved public URLs and matching Store profiles are required. Its `--project-root` input is the repository root.
 
 ```text
-DigitalFootprintExplorer/iosApp/
+apps/ios/
 ├── Configuration/          # Capabilities, policy source and local signing example
 ├── iosApp.xcodeproj/       # Xcode project and shared schemes
 ├── iosApp/                 # SwiftUI app, local storage and automatic refresh
@@ -72,5 +72,7 @@ DigitalFootprintExplorer/iosApp/
 ├── tests/                  # Python tests for those checks
 └── docs/images/            # Interface previews using example history
 ```
+
+This folder layout is a separate proposal from PR #15. The app features and design are kept; the Android source and existing shared model are moved without behaviour changes. The test-fixture correction changes test inputs and expected values, not the model.
 
 The app remains under review. A release still needs a validated distribution build, approved privacy/support pages, confirmed customer regions and successful device acceptance.
