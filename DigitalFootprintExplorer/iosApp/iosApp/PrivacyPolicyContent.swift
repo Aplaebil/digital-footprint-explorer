@@ -29,9 +29,9 @@ struct PrivacyPolicySection: Identifiable {
 enum PrivacyPolicyContent {
     static let appName = "Digital Footprint Explorer"
     static let title = "Privacy policy"
-    static let revision = "2026-10-23"
-    static let updatedText = "Last updated: 23 October 2026"
-    static let contactURL = URL(string: "mailto:digital-footprint-explorer.init@zhaw.ch")!
+    static let revision = "2026-10-27"
+    static let updatedText = "Last updated: 27 October 2026"
+    static let contactURL = URL(string: "mailto:feaa@zhaw.ch")!
     static let introduction = [
         "Digital Footprint Explorer helps you understand an estimated carbon footprint of your phone use. Your settings, calculations and history are processed on your iPhone. You do not need an app account.",
         "The DFE Team maintains the Digital Footprint Explorer iOS app within School of Engineering ZHAW and handles privacy and support questions."
@@ -140,10 +140,20 @@ enum PrivacyPolicyContent {
             ]
         ),
         PrivacyPolicySection(
+            id: "website-support",
+            title: "Online pages and support email",
+            paragraphs: [
+                "Opening our public privacy or support page connects your browser to GitHub Pages. GitHub records visitors' IP addresses for security. These website logs are separate from the app's local history. The pages do not receive your Screen Time history or saved estimates.",
+                "GitHub explains its hosting practices in its privacy statement: https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement.",
+                "If you choose to email the DFE Team, your email address and the message you send reach Ettore Ferranti at School of Engineering ZHAW. Your mail provider and ZHAW's mail service handle that message so the team can reply. Email is optional; the app does not automatically attach your usage data or history.",
+                "Deleting entries in the app does not delete emails you have sent or the website host's logs. Contact the DFE Team if you have a question about a support message or a privacy request."
+            ]
+        ),
+        PrivacyPolicySection(
             id: "contact",
             title: "Questions and changes",
             paragraphs: [
-                "For privacy or support questions, contact the DFE Team at digital-footprint-explorer.init@zhaw.ch. Please do not send your Screen Time history or other private files.",
+                "For privacy or support questions, contact the DFE Team. Ettore Ferranti is the project contact at feaa@zhaw.ch. Please do not send your Screen Time history or other private files.",
                 "The DFE Team will update this policy if the app's data practices change. The date above identifies this copy."
             ]
         )

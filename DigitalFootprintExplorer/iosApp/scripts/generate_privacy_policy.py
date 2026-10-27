@@ -56,6 +56,8 @@ def outputs(document, *, include_web=False):
     .updated {{ color: var(--muted); }}
     a {{ color: #17613b; text-underline-offset: .2em; }}
     a:focus-visible {{ outline: 3px solid currentColor; outline-offset: 4px; }}
+    .page-links {{ display: flex; gap: .5rem 1.25rem; flex-wrap: wrap; margin-bottom: 1rem; }}
+    .page-links a {{ display: inline-flex; align-items: center; min-height: 44px; }}
     footer {{ margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }}
     @media (prefers-color-scheme: dark) {{ :root {{ --text: #f0f7f2; --muted: #c2d0c6; --surface: #142019; --line: #405247; }} a {{ color: #a2e4ba; }} }}
     @media print {{ :root {{ --text: #000; --muted: #333; --surface: #fff; --line: #ccc; }} main {{ max-width: none; padding: 0; }} h2 {{ break-after: avoid; }} }}
@@ -65,12 +67,20 @@ def outputs(document, *, include_web=False):
 <!-- [03] Keep the revision beside the policy so readers know which privacy choices they are reviewing. -->
 <main>
   <header>
+    <!-- [04] Readers can return to the project or find help without reaching the end of the policy. -->
+    <nav class="page-links" aria-label="Project links">
+      <a href="index.html">Project</a>
+      <a href="support-ios.html">iOS support</a>
+    </nav>
     <p class="app-name">{html.escape(document['app_name'])}</p>
     <h1>{html.escape(document['title'])}</h1>
     <p class="updated">Last updated: <time datetime="{document['revision']}">{html.escape(updated)}</time></p>
   </header>
   {body}
-  <footer><a href="mailto:{html.escape(document['contact_email'])}">Email the {html.escape(document['contact_name'])}</a></footer>
+  <footer>
+    <p><a href="mailto:{html.escape(document['contact_email'])}">Email the {html.escape(document['contact_name'])}</a></p>
+    <p><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub hosting privacy</a></p>
+  </footer>
 </main>
 </body>
 </html>
