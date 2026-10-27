@@ -1,63 +1,9 @@
-# [01] Personal editor state and local machine settings do not belong in the shared project.
-.idea/
-**/.idea/
-.DS_Store
-**/.DS_Store
+.idea
 local.properties
-**/local.properties
-**/xcuserdata/
-apps/ios/Configuration/Local.xcconfig
 
-# [02] Keep generated builds, caches and test bundles out; source and database migrations stay visible.
-**/build/
-**/.gradle/
-**/.kotlin/
-**/DerivedData/
-*.xcresult/
-**/__pycache__/
-*.py[cod]
-**/node_modules/
-.dfe-*/
-
-# [03] Signing keys, certificates and device profiles stay with their approved local owner.
-*.p12
-*.pfx
-*.mobileprovision
-*.provisionprofile
-*.cer
-*.certSigningRequest
-*.key
-.env
-.env.*
-!.env.example
-
-# [04] Old packages and working evidence stay outside the source repository.
-report/backups/
-docs/evidence/
-*.zip
-*.bak
-*.backup
-*~
-
-# [05] Compiler scratch files can be recreated locally.
-*.aux
-*.bbl
-*.blg
-*.log
-*.out
-*.toc
-*.synctex.gz
-*.fls
-*.fdb_latexmk
-
-# [06] Academic reports, access requests and local audit records stay outside this code branch.
-docs/pa/
-docs/apple/
-docs/validation/
-
-# [07] Platform tools can recreate these local editor and native-build files.
-*.iml
-**/captures/
-**/.externalNativeBuild/
-**/.cxx/
-**/xcshareddata/WorkspaceSettings.xcsettings
+# iOS settings and local build output
+DigitalFootprintExplorer/iosApp/**/xcuserdata/
+DigitalFootprintExplorer/iosApp/DerivedData/
+DigitalFootprintExplorer/iosApp/Configuration/Local.xcconfig
+DigitalFootprintExplorer/iosApp/Configuration/Local.*.xcconfig
+DigitalFootprintExplorer/iosApp/**/*.xcresult/

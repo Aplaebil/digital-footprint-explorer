@@ -1,0 +1,67 @@
+<resources>
+    <string name="home">
+        Startseite
+    </string>
+    <string name="statistics">
+        Statistik
+    </string>
+    <string name="no_emissions">
+        Keine Emissionsdaten für gestern gespeichert.
+    </string>
+    <string name="your_digital_garden">
+        Dein digitaler Garten
+    </string>
+    <string name="widgetonboarding_main_text">
+        Behalte deinen CO₂-Fussabdruck im Blick - direkt auf dem Homescreen.
+    </string>
+    <string name="add_widget">
+        Widget hinzufügen
+    </string>
+    <string name="later">
+        Später
+    </string>
+    <string name="app_usage_title">
+        Zugriff auf Nutzungsdaten benötigt
+    </string>
+    <string name="usagestats_main_text">
+        Um deinen digitalen Fussabdruck berechnen zu können, benötigt die App Zugriff auf deine Nutzungsdaten. Ohne diese Berechtigung ist die Nutzung der App nicht möglich. Bitte aktiviere den Zugriff in den Systemeinstellungen. Die Daten werden ausschliesslich lokal verarbeitet und nicht an Dritte weitergegeben.
+    </string>
+    <string name="cancel">
+        Abbrechen
+    </string>
+    <string name="settings">
+        Zu den Einstellungen
+    </string>
+    <string name="statistics_screen_title">
+        Dein gestriger Verbrauch
+    </string>
+    <string name="no_statistics">
+        Noch keine Daten vorhanden.\nDie Auswertung erfolgt automatisch jede Nacht.
+    </string>
+    <string name="app_usage">
+        App Nutzung
+    </string>
+    <string name="background">
+        Hintergrund
+    </string>
+    <string name="garden_state_flourishing">Blühend</string>
+    <string name="garden_state_growing">Wachsend</string>
+    <string name="garden_state_stable">Stabil</string>
+    <string name="garden_state_wilting">Welkend</string>
+    <string name="garden_state_withered">Verdorrt</string>
+    <string name="garden_state_unknown">Noch keine Auswertung. Dein Garten wächst über Nacht.</string>
+    <string name="notification_title">Tägliche Verbrauchsbenachrichtigung</string>
+    <string name="notification_state_flourishing">Dein Garten blüht auf. Dein digitaler Fussabdruck lag deutlich unter deinem Durchschnitt – weiter so.</string>
+    <string name="notification_state_growing">Dein Garten wächst. Dein digitaler Fussabdruck hat sich verbessert – bleib dran.</string>
+    <string name="notification_state_stable">Dein Garten ist stabil. Dein digitaler Fussabdruck liegt etwa im Bereich deines Durchschnitts.</string>
+    <string name="notification_state_wilting">Dein Garten beginnt zu welken. Dein digitaler Fussabdruck lag über deinem Durchschnitt – achte heute bewusster darauf.</string>
+    <string name="notification_state_withered">Dein Garten ist vertrocknet. Dein digitaler Fussabdruck lag deutlich über deinem Durchschnitt – achte heute bewusster darauf.</string>
+    <string name="notification_foreground_service_title">DFE ist aktiv</string>
+    <string name="notification_foreground_service_description">Displayhelligkeit und Hintergrundprozesse werden für deinen Tageswert erfasst.</string>
+    <string name="info_tab_label">Info</string>
+    <string name="info_app_version_label">App-Version</string>
+    <string name="info_disclaimer_label">Disclaimer</string>
+    <string name="info_disclaimer_description">Disclaimer anzeigen</string>
+    <string name="info_zhaw_logo_description">ZHAW Logo</string>
+    <string name="info_zhaw_project_description">Diese App wurde im Rahmen einer Bachelorarbeit an der ZHAW entwickelt.</string>
+</resources>

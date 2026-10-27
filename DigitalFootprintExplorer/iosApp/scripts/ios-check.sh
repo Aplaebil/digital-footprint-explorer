@@ -1,0 +1,39 @@
+#!/bin/bash
+# [01] Stop if a build step fails, so a later success cannot hide an earlier problem.
+set -euo pipefail
+# [02] Find the project from this script, allowing the check to run from another folder.
+ios_dir="$(cd "$(dirname "$0")/.." && pwd)"
+project_dir="$(cd "$ios_dir/.." && pwd)"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
+export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17)}"
+# [03] Keep build caches together and resolve their real paths; Kotlin can treat two spellings as different locations.
+cache_dir="${DFE_BUILD_CACHE:-/private/tmp/dfe-build-cache}"
+mkdir -p "$cache_dir"
+cache_dir="$(cd "$cache_dir" && pwd -P)"
+export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$cache_dir/gradle}"
+export KONAN_DATA_DIR="${KONAN_DATA_DIR:-$cache_dir/konan}"
+mkdir -p "$GRADLE_USER_HOME" "$KONAN_DATA_DIR"
+export GRADLE_USER_HOME="$(cd "$GRADLE_USER_HOME" && pwd -P)"
+export KONAN_DATA_DIR="$(cd "$KONAN_DATA_DIR" && pwd -P)"
+# [04] Use the requested simulator, or choose an available iPhone simulator without touching a real phone.
+simulator_id="${DFE_SIMULATOR_ID:-}"
+if [ -z "$simulator_id" ]; then
+  simulator_id="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; data=json.load(sys.stdin)["devices"]; groups=sorted(((key, value) for key,value in data.items() if "iOS" in key), reverse=True); phones=[device for _,devices in groups for device in devices if device.get("isAvailable") and "iPhone" in device["name"]]; print(next((device["udid"] for device in phones if device["state"]=="Booted"), phones[0]["udid"] if phones else ""))')"
+fi
+# [05] Explain the missing simulator instead of trying a build with no test destination.
+if [ -z "$simulator_id" ]; then
+  echo "Install an iOS simulator runtime in Xcode Settings, then run this check again." >&2
+  exit 1
+fi
+# [06] Check the new iOS bridge first, then run controlled native tests without requesting personal Screen Time access.
+# The existing calculator fixture correction belongs to a separate review, so this is not a full shared-suite pass.
+cd "$project_dir"
+./gradlew :shared:iosSimulatorArm64Test --tests '*IosFootprintCalculatorTest*' --console=plain
+result_bundle="${DFE_RESULT_BUNDLE:-$cache_dir/ios-tests-$(date +%Y%m%d-%H%M%S).xcresult}"
+xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp-ScreenTime -configuration ScreenTimeDebug \
+  -destination "platform=iOS Simulator,id=$simulator_id" -parallel-testing-enabled NO \
+  -derivedDataPath "$cache_dir/DerivedData" -resultBundlePath "$result_bundle" CODE_SIGNING_ALLOWED=NO \
+  -only-testing:iosAppTests \
+  -skip-testing:iosAppTests/LiveScreenTimeImportTests \
+  -skip-testing:iosAppTests/LiveAllActivityImportTests test
+echo "Test results: $result_bundle"
