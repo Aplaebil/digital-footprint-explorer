@@ -48,7 +48,7 @@ The expanded Screen Time route requires iOS 26.4 or later, the correct signed Fa
 
 Activity and calculations stay on the iPhone. DFE has no usage-upload service, advertising tracker or remote push server. It does not read message content, contacts or browsing content. Only the saved garden summary is shared locally with the widget, and history containing Screen Time data cannot be exported.
 
-Notification permission is optional and separate from Screen Time. Settings provides the offline privacy policy, connection controls, notification preference and appearance choices. Privacy and support pages for App Store distribution still need approved public addresses and a confirmed DFE Team contact.
+Notification permission is optional and separate from Screen Time. Settings provides the offline privacy policy, connection controls, notification preference and appearance choices. DFE Team is responsible for privacy and support, with [Ettore Ferranti](mailto:feaa@zhaw.ch) as the contact. The public privacy and support pages are prepared for the project website; their deployment must be verified before release.
 
 ## Repository layout
 
@@ -140,7 +140,7 @@ The [iOS guide](apps/ios/README.md#run-the-checks) also gives the interface-test
 
 ## Release status
 
-The iOS app remains under review. App Store distribution still needs a validated signed build, approved public privacy/support pages, confirmed customer regions and physical-device acceptance of daily background updates, visible widget refresh and notification delivery. Compilation and simulator results do not establish those results.
+The iOS app remains under review. App Store distribution still needs a validated signed build, published and verified privacy/support pages, confirmed customer regions and physical-device acceptance of daily background updates, visible widget refresh and notification delivery. Compilation and simulator results do not establish those results.
 
 ## Contributing and licence
 
