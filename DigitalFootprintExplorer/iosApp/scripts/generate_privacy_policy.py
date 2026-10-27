@@ -6,6 +6,7 @@ from datetime import date
 import argparse
 import html
 import json
+import os
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +20,7 @@ def swift_string(value):
     return json.dumps(value, ensure_ascii=False)
 
 
-# [03] The app copy is the default. Website copies are available only when their separate publication is requested.
+# [03] The app copy is the default. Public copies change only when the caller asks for them.
 def outputs(document, *, include_web=False):
     sections = document['sections']
     updated = date.fromisoformat(document['revision']).strftime('%d %B %Y').lstrip('0')
@@ -125,18 +126,22 @@ enum PrivacyPolicyContent {{
         ROOT / 'iosApp/PrivacyPolicyContent.swift': source,
     }
     if include_web:
+        # [04] Both app layouts sit two folders below the repository. Keep one public policy beside the website,
+        # rather than leaving an extra copy inside the app folder.
+        public_docs = ROOT.parent.parent / 'docs'
         generated.update({
-            ROOT / 'docs/privacy-policy.md': markdown,
-            ROOT / 'docs/privacy-policy.html': web,
+            public_docs / 'privacy-policy.md': markdown,
+            public_docs / 'privacy-policy.html': web,
+            public_docs / 'privacy-policy-content.json': json.dumps(document, ensure_ascii=False, indent=2) + '\n',
         })
     return generated
 
 
-# [04] Reject incomplete policy details before writing any copy. Check mode reports old copies without replacing them.
+# [05] Reject incomplete policy details before writing any copy. Check mode reports old copies without replacing them.
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Verify the selected copies without rewriting them.')
-    parser.add_argument('--include-web', action='store_true', help='Also generate or verify the separate HTML and Markdown website copies.')
+    parser.add_argument('--include-web', action='store_true', help='Also generate or verify the HTML, Markdown and JSON policy copies in the repository website.')
     args = parser.parse_args()
     document = json.loads(CONTENT.read_text())
     if document['schema_version'] != 1:
@@ -152,7 +157,8 @@ def main():
     for path, content in outputs(document, include_web=args.include_web).items():
         if args.check:
             if not path.is_file() or path.read_text() != content:
-                stale.append(str(path.relative_to(ROOT)))
+                # [06] Public pages live outside the app folder; report that path without changing any file.
+                stale.append(os.path.relpath(path, ROOT))
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content)

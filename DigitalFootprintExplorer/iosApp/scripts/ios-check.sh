@@ -25,10 +25,9 @@ if [ -z "$simulator_id" ]; then
   echo "Install an iOS simulator runtime in Xcode Settings, then run this check again." >&2
   exit 1
 fi
-# [06] Check the new iOS bridge first, then run controlled native tests without requesting personal Screen Time access.
-# The existing calculator fixture correction belongs to a separate review, so this is not a full shared-suite pass.
+# [06] Check the shared calculation first, then run controlled native tests without requesting personal Screen Time access.
 cd "$project_dir"
-./gradlew :shared:iosSimulatorArm64Test --tests '*IosFootprintCalculatorTest*' --console=plain
+./gradlew :shared:iosSimulatorArm64Test --console=plain
 result_bundle="${DFE_RESULT_BUNDLE:-$cache_dir/ios-tests-$(date +%Y%m%d-%H%M%S).xcresult}"
 xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp-ScreenTime -configuration ScreenTimeDebug \
   -destination "platform=iOS Simulator,id=$simulator_id" -parallel-testing-enabled NO \

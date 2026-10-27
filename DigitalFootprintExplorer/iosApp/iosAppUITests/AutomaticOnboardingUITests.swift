@@ -163,7 +163,11 @@ final class AutomaticOnboardingUITests: XCTestCase {
         let contact = AutomaticUITestSupport.element("privacy.contact", in: app)
         AutomaticUITestSupport.reach(contact, in: app)
         XCTAssertGreaterThanOrEqual(contact.frame.height, 44)
-        XCTAssertFalse(AutomaticUITestSupport.element("privacy.online", in: app).exists)
+        // [09] The online copy is an extra choice. The local policy stays open without visiting it.
+        let online = AutomaticUITestSupport.element("privacy.online", in: app)
+        AutomaticUITestSupport.reach(online, in: app)
+        XCTAssertGreaterThanOrEqual(online.frame.height, 44)
+        XCTAssertTrue(app.navigationBars["Privacy policy"].exists)
         AutomaticUITestSupport.assertNoManualEntry(in: app)
         AutomaticUITestSupport.capture("Offline privacy contact at largest text")
     }
