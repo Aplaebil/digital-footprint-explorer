@@ -25,7 +25,7 @@ if [ -z "$simulator_id" ]; then
   echo "Install an iOS simulator runtime in Xcode Settings, then run this check again." >&2
   exit 1
 fi
-# [06] Check the shared calculations first, then run controlled native tests without requesting personal Screen Time access.
+# [06] Check the shared calculation first, then run controlled native tests without requesting personal Screen Time access.
 cd "$project_dir"
 ./gradlew :shared:iosSimulatorArm64Test --console=plain
 result_bundle="${DFE_RESULT_BUNDLE:-$cache_dir/ios-tests-$(date +%Y%m%d-%H%M%S).xcresult}"

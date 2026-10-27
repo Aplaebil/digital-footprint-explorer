@@ -27,7 +27,7 @@ The app keeps its history on the iPhone. Its App Group holds only the latest gar
 
 Family Controls and App and Website Usage need the correct capabilities, profiles and user authorization. Apple's published expanded-access customer conditions include an EU-located device and an EU Apple Account region. Development testing elsewhere does not prove customer availability there. Check [Apple's entitlement guide](https://developer.apple.com/documentation/familycontrols/requesting-the-family-controls-entitlement) and [expanded access conditions](https://developer.apple.com/documentation/familycontrols/authorizationstatus/approvedwithdataaccess) before choosing release countries.
 
-The offline policy is in the app. Approved public privacy and support URLs still need to be set in the release configuration and App Store Connect before distribution.
+The offline policy is in the app. The approved privacy and support addresses are set in the release configuration. Their pages are included in the final PR #15 and will deploy through GitHub Pages after it is merged. This alternative branch keeps matching app and page content. Both addresses must return the correct public page before a release is uploaded; their App Store Connect fields also need to match.
 
 ## Run the checks
 
@@ -36,10 +36,11 @@ From the repository root:
 ```sh
 python3 -m unittest discover -s apps/ios/tests -v
 python3 apps/ios/scripts/generate_privacy_policy.py --check
+python3 apps/ios/scripts/generate_privacy_policy.py --check --include-web
 bash apps/ios/scripts/ios-check.sh
 ```
 
-The last command runs the full shared iOS-simulator calculation suite and the controlled native unit tests. This alternative branch includes the calculator test-fixture correction from PR #16, so the original model tests and the new iOS bridge tests run together. Set `DFE_SIMULATOR_ID` to choose a particular installed simulator. It writes an `.xcresult` bundle outside the repository by default and prints its path. These tests use isolated stores and do not request personal Screen Time access.
+The last command runs all 24 shared calculation tests, including the iOS bridge and the corrected time-unit fixtures, followed by the controlled native unit tests. Set `DFE_SIMULATOR_ID` to choose a particular installed simulator. It writes an `.xcresult` bundle outside the repository by default and prints its path. These tests use isolated stores and do not request personal Screen Time access.
 
 To run the interface tests, replace the destination below with an installed iPhone simulator:
 
@@ -55,7 +56,9 @@ Live Screen Time import, a natural new-day background update, visible widget ref
 
 ## Local tools
 
-Edit the policy in `Configuration/PrivacyPolicyContent.json`, then run `scripts/generate_privacy_policy.py`. The default updates only `iosApp/PrivacyPolicyContent.swift`. `--include-web` also exports matching HTML and Markdown into this iOS folder's `docs/` directory for a separate website review. It does not publish them or change the repository's existing website.
+Edit the policy in `Configuration/PrivacyPolicyContent.json`, then run `scripts/generate_privacy_policy.py`. The default updates only `iosApp/PrivacyPolicyContent.swift` and leaves the website alone. Add `--include-web` to update the same policy's HTML, Markdown and JSON copies in the repository's root `docs/` folder. No extra public copies are created inside this iOS folder. Use `--check --include-web` to report differences without changing any file.
+
+The generated public files are `docs/privacy-policy.html`, `docs/privacy-policy.md` and `docs/privacy-policy-content.json` at the repository root. Generating them does not deploy the website. GitHub Pages publishes the repository's approved website source after PR #15 is merged.
 
 `scripts/check-ios-release.py` inspects a built bundle or archive without uploading it or changing signing resources. Pass `--require-store` when a distribution signature, approved public URLs and matching Store profiles are required. Its `--project-root` input is the repository root.
 
@@ -73,6 +76,10 @@ apps/ios/
 └── docs/images/            # Interface previews using example history
 ```
 
-This folder layout is a separate proposal from PR #15. The app features and design are kept; the Android source and existing shared model are moved without behaviour changes. The test-fixture correction changes test inputs and expected values, not the model.
+The app remains under review. A release still needs a validated distribution build, successfully deployed privacy/support pages, confirmed customer regions and successful device acceptance.
 
-The app remains under review. A release still needs a validated distribution build, approved privacy/support pages, confirmed customer regions and successful device acceptance.
+## Public pages and contact
+
+DFE Team maintains the app, with [Ettore Ferranti](mailto:feaa@zhaw.ch) as the privacy and support contact. The policy and support pages are included under the repository’s `docs/` folder in the final PR #15, which uses the original project layout. Their HTTPS addresses are set in `Configuration/Config.xcconfig`; verify that GitHub Pages has deployed both pages before uploading a release. A pending deployment is a release gate. The offline policy remains available without visiting the website.
+
+This branch keeps an alternative folder layout for comparison. Its app design, functions and shared calculation model match the final PR #15. It does not require another pull request.

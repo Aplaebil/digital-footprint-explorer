@@ -6,7 +6,7 @@ Digital Footprint Explorer (DFE) is a mobile application developed at the Zurich
 
 **Screen Time provides available app usage time on iOS. Carbon emissions, data traffic and power use remain estimates.** The garden reflects those estimates; it does not measure changes in the environment.
 
-This branch, `proposal/repository-layout`, keeps the current iOS features and corrections in an alternative folder layout. It is a separate proposal from [PR #15](https://github.com/ZHAW-InIT-SoftwareEngineering/digital-footprint-explorer/pull/15), which keeps the existing repository structure. It also includes the calculator test-fixture correction proposed in [PR #16](https://github.com/ZHAW-InIT-SoftwareEngineering/digital-footprint-explorer/pull/16). Neither pull request needs to be merged to review this branch.
+This branch, `proposal/repository-layout`, keeps the current app in an alternative folder layout. [PR #15](https://github.com/ZHAW-InIT-SoftwareEngineering/digital-footprint-explorer/pull/15) contains the final app, calculation-test corrections and public privacy/support pages in the original repository structure. Both versions keep the same app design, functions and shared calculation model. This branch provides a folder comparison and does not need another pull request.
 
 ## A look inside
 
@@ -48,7 +48,7 @@ The expanded Screen Time route requires iOS 26.4 or later, the correct signed Fa
 
 Activity and calculations stay on the iPhone. DFE has no usage-upload service, advertising tracker or remote push server. It does not read message content, contacts or browsing content. Only the saved garden summary is shared locally with the widget, and history containing Screen Time data cannot be exported.
 
-Notification permission is optional and separate from Screen Time. Settings provides the offline privacy policy, connection controls, notification preference and appearance choices. DFE Team is responsible for privacy and support, with [Ettore Ferranti](mailto:feaa@zhaw.ch) as the contact. The public privacy and support pages are prepared for the project website; their deployment must be verified before release.
+Notification permission is optional and separate from Screen Time. Settings provides the offline privacy policy, connection controls, notification preference and appearance choices. DFE Team is responsible for privacy and support, with [Ettore Ferranti](mailto:feaa@zhaw.ch) as the contact. The [privacy policy](docs/privacy-policy.html) and [support page](docs/support-ios.html) are included in the final PR #15. Their HTTPS addresses are configured in the app; verify the GitHub Pages deployment after merge and before release.
 
 ## Repository layout
 
@@ -84,6 +84,11 @@ The apps have separate folders, with one shared model and one Gradle build at th
 │   └── wrapper/                     # Gradle launcher files
 ├── docs/                            # Existing website in its GitHub Pages location
 │   ├── index.html
+│   ├── ios-pages.css
+│   ├── privacy-policy.html
+│   ├── privacy-policy.md
+│   ├── privacy-policy-content.json
+│   ├── support-ios.html
 │   ├── dfe-sensitivity-analyser/
 │   ├── images/
 │   └── architecture/                # Original reference diagrams
@@ -131,10 +136,11 @@ From the repository root:
 ```sh
 python3 -m unittest discover -s apps/ios/tests -v
 python3 apps/ios/scripts/generate_privacy_policy.py --check
+python3 apps/ios/scripts/generate_privacy_policy.py --check --include-web
 bash apps/ios/scripts/ios-check.sh
 ```
 
-The last command runs the full shared iOS-simulator calculation suite and the controlled native unit tests. This branch includes the separate calculator test-fixture correction, so it can test the shared model and iOS bridge together. Set `DFE_SIMULATOR_ID` to use a particular installed simulator. The tool writes its `.xcresult` bundle outside the repository by default and prints the location.
+The last command runs all 24 shared calculation tests and the controlled native unit tests. The corrected time-unit fixtures and the iOS bridge tests run together, as in the final PR #15. Set `DFE_SIMULATOR_ID` to use a particular installed simulator. The tool writes its `.xcresult` bundle outside the repository by default and prints the location.
 
 The [iOS guide](apps/ios/README.md#run-the-checks) also gives the interface-test command and explains which checks need a physical device. Controlled tests use isolated stores and do not request personal Screen Time access. They do not replace Android app testing or final customer-build acceptance.
 
