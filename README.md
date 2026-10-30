@@ -48,7 +48,7 @@ The expanded Screen Time route requires iOS 26.4 or later, the correct signed Fa
 
 Activity and calculations stay on the iPhone. DFE has no usage-upload service, advertising tracker or remote push server. It does not read message content, contacts or browsing content. Only the saved garden summary is shared locally with the widget, and history containing Screen Time data cannot be exported.
 
-Notification permission is optional and separate from Screen Time. Settings provides the offline privacy policy, connection controls, notification preference and appearance choices. DFE Team is responsible for privacy and support, with [Ettore Ferranti](mailto:feaa@zhaw.ch) as the contact. The [privacy policy](docs/privacy-policy.html) and [support page](docs/support-ios.html) are included in the final PR #15. Their HTTPS addresses are configured in the app; verify the GitHub Pages deployment after merge and before release.
+Notification permission is optional and separate from Screen Time. Settings provides the offline privacy policy, connection controls, notification preference and appearance choices. DFE Team is responsible for privacy and support at [digital-footprint-explorer.init@zhaw.ch](mailto:digital-footprint-explorer.init@zhaw.ch). The [privacy policy](docs/privacy-policy.html) and [support page](docs/support-ios.html) are included in the final PR #15. Their HTTPS addresses are configured in the app; verify the GitHub Pages deployment after merge and before release.
 
 ## Repository layout
 
@@ -56,6 +56,8 @@ The apps have separate folders, with one shared model and one Gradle build at th
 
 ```text
 .
+├── .github/workflows/
+│   └── ios-checks.yml               # Shared and controlled iOS checks, without signing
 ├── apps/
 │   ├── android/                     # Existing Android app, worker and widget
 │   │   ├── src/androidMain/
@@ -108,7 +110,7 @@ Personal signing files, generated builds and test results stay outside the track
 
 ### iPhone app
 
-Use a Mac with Xcode, an iOS 26.4 or later SDK, JDK 17 and an installed iPhone simulator. The Xcode build runs the root Gradle wrapper to build the shared Kotlin framework.
+Use a Mac with Xcode 27.1, JDK 17 and an installed iPhone simulator. The build needs the iOS 27 SDK; the app and widget run on iOS 26.4 or later. The Xcode build runs the root Gradle wrapper to build the shared Kotlin framework.
 
 1. Open `apps/ios/iosApp.xcodeproj`.
 2. Select the **iosApp-ScreenTime** scheme and an available iPhone simulator, then run. Simulator builds need no Apple signing credentials and cannot prove real Screen Time access.

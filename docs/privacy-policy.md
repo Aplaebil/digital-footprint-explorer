@@ -2,7 +2,7 @@
 
 ## Privacy policy
 
-Last updated: 27 October 2026
+Last updated: 30 October 2026
 
 Digital Footprint Explorer helps you understand an estimated carbon footprint of your phone use. Your settings, calculations and history are processed on your iPhone. You do not need an app account.
 
@@ -108,12 +108,12 @@ Opening our public privacy or support page connects your browser to GitHub Pages
 
 GitHub explains its hosting practices in its privacy statement: https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement.
 
-If you choose to email the DFE Team, your email address and the message you send reach Ettore Ferranti at School of Engineering ZHAW. Your mail provider and ZHAW's mail service handle that message so the team can reply. Email is optional; the app does not automatically attach your usage data or history.
+If you choose to email the DFE Team, your email address and the message you send reach the project team at School of Engineering ZHAW. Your mail provider and ZHAW's mail service handle that message so the team can reply. Email is optional; the app does not automatically attach your usage data or history.
 
 Deleting entries in the app does not delete emails you have sent or the website host's logs. Contact the DFE Team if you have a question about a support message or a privacy request.
 
 ### Questions and changes
 
-For privacy or support questions, contact the DFE Team. Ettore Ferranti is the project contact at feaa@zhaw.ch. Please do not send your Screen Time history or other private files.
+For privacy or support questions, contact the DFE Team at digital-footprint-explorer.init@zhaw.ch. Please do not send your Screen Time history or other private files.
 
 The DFE Team will update this policy if the app's data practices change. The date above identifies this copy.
