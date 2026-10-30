@@ -151,13 +151,29 @@ struct FootprintResult: Codable, Equatable {
     let displayKg: Double
     let backgroundKg: Double
     let categories: [CategoryFootprint]
-    // [15] Stop impossible or incomplete values before they can change the saved garden.
+    // [15] A saved estimate must add up, not just contain readable numbers. Allow tiny rounding
+    // differences and keep older total-only history, but stop broken parts before they reach the garden.
     func validate() throws {
         let values = [totalKg, appUsageKg, displayKg, backgroundKg] + categories.flatMap {
             [$0.totalKg, $0.deviceKg, $0.networkKg, $0.backendKg]
         }
         guard values.allSatisfy({ $0.isFinite && $0 >= 0 }) else {
             throw FootprintError.invalidResult
+        }
+        func matches(_ actual: Double, _ expected: Double) -> Bool {
+            guard expected.isFinite else { return false }
+            let tolerance = max(1e-12, max(abs(actual), abs(expected)) * 1e-10)
+            return abs(actual - expected) <= tolerance
+        }
+        guard matches(totalKg, appUsageKg + displayKg + backgroundKg),
+              Set(categories.map(\.category)).count == categories.count,
+              categories.allSatisfy({ matches($0.totalKg, $0.deviceKg + $0.networkKg + $0.backendKg) }) else {
+            throw FootprintError.invalidResult
+        }
+        if !categories.isEmpty {
+            guard matches(appUsageKg, categories.reduce(0) { $0 + $1.totalKg }) else {
+                throw FootprintError.invalidResult
+            }
         }
     }
 }
