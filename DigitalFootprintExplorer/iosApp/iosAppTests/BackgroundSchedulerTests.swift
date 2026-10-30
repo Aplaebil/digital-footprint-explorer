@@ -234,6 +234,36 @@ final class BackgroundSchedulerTests: XCTestCase {
         }
     }
 
+    // [29] A morning retry may use the last daytime hour, but it should not queue a notice check
+    // for eight in the evening or later.
+    func testNoticeRetryStopsBeforeEveningAndKeepsNextLocalMorning() throws {
+        let savedDates = [date("2026-10-20T12:00:00Z")]
+        let atEighteen = date("2026-10-21T16:00:00Z")
+        XCTAssertEqual(BackgroundSchedule.nextAttempt(after: atEighteen, importEligible: true,
+            completedDates: savedDates, notificationRetryNeeded: true,
+            calendar: calendar, deliveryCalendar: calendar), date("2026-10-21T17:00:00Z"))
+        for now in [date("2026-10-21T17:00:00Z"), date("2026-10-21T17:30:00Z"),
+                    date("2026-10-21T18:00:00Z")] {
+            XCTAssertEqual(BackgroundSchedule.nextAttempt(after: now, importEligible: true,
+                completedDates: savedDates, notificationRetryNeeded: true,
+                calendar: calendar, deliveryCalendar: calendar), date("2026-10-22T06:00:00Z"))
+        }
+        XCTAssertEqual(BackgroundSchedule.nextAttempt(after: date("2026-10-21T06:00:00Z"), importEligible: false,
+            completedDates: savedDates, notificationRetryNeeded: true,
+            calendar: calendar, deliveryCalendar: calendar), date("2026-10-22T06:00:00Z"))
+    }
+
+    // [30] Travel changes the quiet-hours boundary too. An archive's older time zone must not
+    // stretch the person's local evening into another retry.
+    func testNoticeRetryEveningBoundaryUsesTheDeliveryTimeZone() throws {
+        var delivery = calendar
+        delivery.timeZone = TimeZone(identifier: "America/Sao_Paulo")!
+        let now = date("2026-10-21T22:00:00Z") // [31] 19:00 local, already midnight in the archive.
+        XCTAssertEqual(BackgroundSchedule.nextAttempt(after: now, importEligible: true,
+            completedDates: [date("2026-10-21T12:00:00Z")], notificationRetryNeeded: true,
+            calendar: calendar, deliveryCalendar: delivery), date("2026-10-22T11:00:00Z"))
+    }
+
     // [20] The phone's notification clock and a saved history day may use different time zones
     // without mixing dates.
     func testLocalDeliveryClockAndArchiveDayEligibilityUseTheirOwnTimeZones() throws {

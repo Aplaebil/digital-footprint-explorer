@@ -179,6 +179,27 @@ actor DailyGardenNotificationCoordinator {
 
     func isEnabled() throws -> Bool { try ledgerStore.load().enabled }
 
+    // [16] A saved day may still need a fresh morning check. Read the same daily limits
+    // used for sending, without reserving a date or publishing the older result.
+    func needsRetry(for plan: DailyGardenNotificationPlan?) async throws -> Bool {
+        let previous = tail
+        let work = Task {
+            await previous?.value
+            try Task.checkCancellation()
+            let ledger = try ledgerStore.load()
+            guard ledger.enabled, let plan, !ledger.contains(plan),
+                  await client.isAuthorized() else { return false }
+            let existing = await client.requestState()
+            return !existing.identifiers.contains(plan.identifier)
+        }
+        tail = Task { _ = try? await work.value }
+        return try await withTaskCancellationHandler {
+            try await work.value
+        } onCancel: {
+            work.cancel()
+        }
+    }
+
     func setEnabled(_ enabled: Bool) async throws {
         let previous = tail
         let work = Task {
