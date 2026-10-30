@@ -25,10 +25,6 @@ jobs:
         shell: bash
     env:
       DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
-      DFE_BUILD_CACHE: ${{ runner.temp }}/dfe-build-cache
-      GRADLE_USER_HOME: ${{ runner.temp }}/dfe-build-cache/gradle
-      KONAN_DATA_DIR: ${{ runner.temp }}/dfe-build-cache/konan
-      DFE_RESULT_BUNDLE: ${{ runner.temp }}/dfe-test-results/ios-tests.xcresult
 
     steps:
       - name: Check out the proposed code
@@ -77,6 +73,11 @@ jobs:
             | tee "$RUNNER_TEMP/dfe-test-results/privacy-check.log"
 
       - name: Run the shared model and controlled iOS tests
+        env:
+          DFE_BUILD_CACHE: ${{ runner.temp }}/dfe-build-cache
+          GRADLE_USER_HOME: ${{ runner.temp }}/dfe-build-cache/gradle
+          KONAN_DATA_DIR: ${{ runner.temp }}/dfe-build-cache/konan
+          DFE_RESULT_BUNDLE: ${{ runner.temp }}/dfe-test-results/ios-tests.xcresult
         run: |
           set -euo pipefail
           bash DigitalFootprintExplorer/iosApp/scripts/ios-check.sh 2>&1 \
