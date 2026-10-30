@@ -65,7 +65,8 @@ struct WidgetSnapshotStorage {
         } catch { return .unreadable }
     }
 
-    /// [06] Return true only for changed content, so opening the app does not waste reloads.
+    /// [06] Keep the newest saved summary, including its check time. The publisher separately
+    /// decides whether this change needs a new garden timeline.
     @discardableResult
     func write(_ snapshot: GardenWidgetSnapshot?) throws -> Bool {
         guard let fileURL else { return false }

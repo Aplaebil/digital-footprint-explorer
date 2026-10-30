@@ -29,6 +29,7 @@ struct BackgroundSchedule {
     }
 
     static func nextAttempt(after date: Date, importEligible: Bool, completedDates: [Date],
+                            notificationRetryNeeded: Bool = false,
                             calendar: Calendar = FootprintCalendar.localCalendar,
                             deliveryCalendar: Calendar = FootprintCalendar.localCalendar) -> Date? {
         guard let tomorrow = nextDay(after: date, calendar: deliveryCalendar),
@@ -38,8 +39,16 @@ struct BackgroundSchedule {
         if let morning = deliveryCalendar.date(bySettingHour: 8, minute: 0, second: 0, of: date), date < morning {
             return morning
         }
-        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: date)),
-              !completedDates.contains(where: { calendar.isDate($0, inSameDayAs: yesterday) }) else { return nextMorning }
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: date)) else { return nil }
+        if completedDates.contains(where: { calendar.isDate($0, inSameDayAs: yesterday) }) {
+            // [26] An early saved day is not proof that its morning notice had a chance.
+            // Keep retries inside the daytime window, leaving the evening quiet.
+            let retry = date.addingTimeInterval(retryInterval)
+            if notificationRetryNeeded,
+               let evening = deliveryCalendar.date(bySettingHour: 20, minute: 0, second: 0, of: date),
+               retry < evening { return retry }
+            return nextMorning
+        }
         // [04] Apple may publish a completed day later. A retry stays bounded by the next morning.
         return min(date.addingTimeInterval(retryInterval), nextMorning)
     }
@@ -267,13 +276,22 @@ final class BackgroundScheduler {
         screenTime.refreshAuthorization()
         let importEligible = screenTime.state.canImport && screenTime.hasEligibleCompletedDay(store: store, now: now)
         let completedDates = store.records.filter(\.isCompleted).compactMap { store.date(for: $0.day) }
-        guard let earliest = BackgroundSchedule.nextAttempt(after: now, importEligible: importEligible,
-            completedDates: completedDates, calendar: store.aggregationCalendar,
-            deliveryCalendar: FootprintCalendar.localCalendar) else { return }
+        let calendar = store.aggregationCalendar
+        let deliveryCalendar = FootprintCalendar.localCalendar
+        let notifications = notifications
+        let store = store
         let requests = requests
         let enabled = registeredKinds
         Task.detached { [weak self] in
             let owner = self
+            let notificationRetryNeeded: Bool
+            if importEligible, let notifications {
+                notificationRetryNeeded = await notifications.needsRetry(store: store,
+                    automaticAccessReady: true, now: now)
+            } else { notificationRetryNeeded = false }
+            guard let earliest = BackgroundSchedule.nextAttempt(after: now, importEligible: importEligible,
+                completedDates: completedDates, notificationRetryNeeded: notificationRetryNeeded,
+                calendar: calendar, deliveryCalendar: deliveryCalendar) else { return }
             let results = await requests.submit(earliest: earliest, enabled: enabled)
             await MainActor.run {
                 guard let owner else { return }
@@ -311,6 +329,9 @@ final class BackgroundScheduler {
             let diagnosticOwner = self
             #endif
             defer {
+                // [27] The new result or notice reservation can change the next useful time.
+                // A temporary morning failure should keep a later chance on the same day.
+                self?.schedule()
                 if lifetime.claimCompletion() {
                     backgroundTask.setTaskCompleted(success: success)
                     #if DEBUG

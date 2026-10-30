@@ -85,6 +85,108 @@ final class WidgetSnapshotTests: XCTestCase {
         XCTAssertEqual(reloads, 2)
     }
 
+    // [17] Checking the same day again updates its saved time, but it should not spend another
+    // widget refresh on the same garden. VoiceOver can still read the newer time from the file.
+    func testPublisherSavesNewCheckTimeWithoutReloadingTheSameGarden() throws {
+        let storage = WidgetSnapshotStorage(directory: directory())
+        var reloads = 0
+        let publisher = FootprintWidgetPublisher(storage: storage) { reloads += 1 }
+        let original = snapshot()
+        let checkedAgain = GardenWidgetSnapshot(day: original.day, totalKg: original.totalKg,
+            garden: original.garden, source: original.source,
+            calculatedAt: date("2026-10-07T11:00:00Z"), isCompleted: original.isCompleted)
+
+        try publisher.publish(original)
+        try publisher.publish(checkedAgain)
+
+        XCTAssertEqual(reloads, 1, "A later check alone does not change the garden")
+        XCTAssertEqual(storage.read().snapshot, checkedAgain, "Keep the latest saved time for the next widget read")
+        let zone = TimeZone(secondsFromGMT: 0)!
+        let locale = Locale(identifier: "en_US")
+        XCTAssertNotEqual(original.accessibilitySummary(on: checkedAgain.calculatedAt, timeZone: zone, locale: locale),
+                          storage.read().snapshot?.accessibilitySummary(on: checkedAgain.calculatedAt, timeZone: zone, locale: locale))
+    }
+
+    // [18] Automatic imports can check yesterday more than once. The full save path must treat
+    // unchanged usage like the same result, while a real correction still reaches both widgets.
+    func testRepeatedAutomaticImportDoesNotReloadUntilItsSavedResultChanges() throws {
+        let folder = directory()
+        let storage = WidgetSnapshotStorage(directory: folder.appendingPathComponent("widget"))
+        var reloads = 0
+        let publisher = FootprintWidgetPublisher(storage: storage) { reloads += 1 }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let store = FootprintStore(fileURL: folder.appendingPathComponent("history.json"),
+                                  calculator: WidgetTestCalculator(), calendar: calendar, widgetPublisher: publisher)
+        let day = date("2026-10-07T10:00:00Z")
+        let firstCheck = date("2026-10-08T08:00:00Z")
+        let laterCheck = date("2026-10-08T08:10:00Z")
+        try store.saveAutomaticProfile(inputs(0), now: day)
+        try store.importAutomaticUsage(day: day, minutesByCategory: [FootprintCategory.video.rawValue: 30], now: firstCheck)
+        let first = try XCTUnwrap(storage.read().snapshot)
+        XCTAssertEqual(reloads, 1)
+
+        try store.importAutomaticUsage(day: day, minutesByCategory: [FootprintCategory.video.rawValue: 30], now: laterCheck)
+        let repeated = try XCTUnwrap(storage.read().snapshot)
+        XCTAssertEqual(repeated.totalKg, first.totalKg)
+        XCTAssertEqual(repeated.garden, first.garden)
+        XCTAssertEqual(repeated.calculatedAt, laterCheck)
+        XCTAssertEqual(store.latest?.calculatedAt, laterCheck)
+        XCTAssertEqual(reloads, 1, "An unchanged automatic import should keep its earlier reload request")
+
+        try store.importAutomaticUsage(day: day, minutesByCategory: [FootprintCategory.video.rawValue: 40],
+                                       now: date("2026-10-08T08:20:00Z"))
+        XCTAssertEqual(reloads, 2)
+        XCTAssertEqual(storage.read().snapshot, store.latest.map(GardenWidgetSnapshot.init(record:)))
+    }
+
+    // [19] A new date, amount, garden, source or completion changes the story the widget tells.
+    // Check each part separately so one correct comparison cannot hide another missing one.
+    func testPublisherReloadsForEveryMeaningfulGardenChange() throws {
+        let original = snapshot()
+        let changes: [(String, GardenWidgetSnapshot)] = [
+            ("day", GardenWidgetSnapshot(day: "2026-10-08", totalKg: original.totalKg, garden: original.garden,
+                source: original.source, calculatedAt: original.calculatedAt, isCompleted: original.isCompleted)),
+            ("amount", GardenWidgetSnapshot(day: original.day, totalKg: 0.08, garden: original.garden,
+                source: original.source, calculatedAt: original.calculatedAt, isCompleted: original.isCompleted)),
+            ("garden", GardenWidgetSnapshot(day: original.day, totalKg: original.totalKg, garden: .growing,
+                source: original.source, calculatedAt: original.calculatedAt, isCompleted: original.isCompleted)),
+            ("source", GardenWidgetSnapshot(day: original.day, totalKg: original.totalKg, garden: original.garden,
+                source: .screenTimeWithEstimates, calculatedAt: original.calculatedAt, isCompleted: original.isCompleted)),
+            ("completion", GardenWidgetSnapshot(day: original.day, totalKg: original.totalKg, garden: original.garden,
+                source: original.source, calculatedAt: original.calculatedAt, isCompleted: true))
+        ]
+        for (name, changed) in changes {
+            let storage = WidgetSnapshotStorage(directory: directory())
+            var reloads = 0
+            let publisher = FootprintWidgetPublisher(storage: storage) { reloads += 1 }
+            try publisher.publish(original)
+            try publisher.publish(changed)
+            XCTAssertEqual(reloads, 2, "A changed \(name) needs a new widget timeline")
+            XCTAssertEqual(storage.read().snapshot, changed)
+        }
+    }
+
+    // [20] A summary can disappear or become unreadable between checks. Repairing it needs a
+    // reload even when the app's result has not changed since the last successful save.
+    func testPublisherReloadsAfterRepairingAMissingOrDamagedSummary() throws {
+        let storage = WidgetSnapshotStorage(directory: directory())
+        var reloads = 0
+        let publisher = FootprintWidgetPublisher(storage: storage) { reloads += 1 }
+        let value = snapshot()
+        try publisher.publish(value)
+        let file = try XCTUnwrap(storage.fileURL)
+        try FileManager.default.removeItem(at: file)
+        try publisher.publish(value)
+        XCTAssertEqual(reloads, 2)
+        try Data("damaged summary".utf8).write(to: file)
+        try publisher.publish(value)
+        XCTAssertEqual(reloads, 3)
+        XCTAssertEqual(storage.read().snapshot, value)
+        try publisher.publish(value)
+        XCTAssertEqual(reloads, 3)
+    }
+
     // [04] A damaged or unfamiliar summary should stay hidden rather than show a convincing but
     // invalid footprint.
     func testInvalidDatesNonfiniteTotalsCorruptionAndNewVersionsAreNotDisplayed() throws {

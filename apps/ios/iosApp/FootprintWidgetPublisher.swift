@@ -42,14 +42,26 @@ final class FootprintWidgetPublisher: WidgetSnapshotPublishing {
         self.storage = storage
         self.reload = reload
     }
-    // [03] Ask WidgetKit to reload only after the shared summary changes, saving limited refresh opportunities.
+    // [03] Checking yesterday again can change its saved time without changing its garden.
+    // Keep that new time in the file, but ask WidgetKit for a redraw only when the result changes.
     func publish(_ snapshot: GardenWidgetSnapshot?) throws {
-        if try storage.write(snapshot) { reload() }
+        let previous = storage.read().snapshot
+        guard try storage.write(snapshot) else { return }
+        if let previous, let snapshot, showsSameGarden(previous, snapshot) { return }
+        reload()
+    }
+
+    // [04] A missing or damaged summary has no earlier garden to compare, so repairing it still
+    // requests a reload. Only the time of an otherwise unchanged save can wait for the next read.
+    private func showsSameGarden(_ previous: GardenWidgetSnapshot, _ current: GardenWidgetSnapshot) -> Bool {
+        previous.day == current.day && previous.totalKg == current.totalKg
+            && previous.garden == current.garden && previous.source == current.source
+            && previous.isCompleted == current.isCompleted
     }
 }
 
 extension GardenWidgetSnapshot {
-    // [04] Copy only the last saved result needed by the widget. App identities and detailed inputs stay out.
+    // [05] Copy only the last saved result needed by the widget. App identities and detailed inputs stay out.
     init(record: FootprintRecord) {
         day = record.day
         totalKg = record.result.totalKg

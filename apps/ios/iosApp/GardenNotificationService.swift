@@ -188,6 +188,15 @@ final class GardenNotificationService: ObservableObject {
         await refreshPreference()
     }
 
+    // [14] This is only a request for another data check. The old saved day is never
+    // sent here; a later successful import must still pass the normal delivery checks.
+    func needsRetry(store: FootprintStore, automaticAccessReady: Bool, now: Date = Date()) async -> Bool {
+        let candidate = DailyGardenNotificationPlan.make(records: store.records,
+            automaticAccessReady: store.usesAutomaticInput && automaticAccessReady,
+            now: now, recordCalendar: store.aggregationCalendar, deliveryCalendar: FootprintCalendar.localCalendar)
+        return (try? await coordinator.needsRetry(for: candidate)) ?? false
+    }
+
     #if DEBUG
     /// [11] Read-only system state for a connected development session. It never
     /// adds, cancels or reveals notification text, app identities or usage.

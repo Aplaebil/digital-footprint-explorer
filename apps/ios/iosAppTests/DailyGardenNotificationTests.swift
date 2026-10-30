@@ -135,6 +135,105 @@ final class DailyGardenNotificationTests: XCTestCase {
         XCTAssertEqual(lateMorning.deliverAt, date("2026-10-21T09:00:00Z"))
     }
 
+    // [25] A day saved before breakfast still needs a fresh morning check. If Apple is briefly
+    // unavailable at eight, keep one later chance instead of waiting until tomorrow.
+    func testSavedBeforeEightRetriesPendingMorningImportThenNotifiesOnce() async throws {
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true)
+        let days = calendar()
+        let beforeEight = date("2026-10-21T05:00:00Z")
+        let atEight = date("2026-10-21T06:00:00Z")
+        let atNine = date("2026-10-21T07:00:00Z")
+        let saved = record()
+        let savedDates = [try XCTUnwrap(FootprintCalendar(calendar: days).date(saved.day))]
+
+        let earlyPlan = DailyGardenNotificationPlan.make(records: [saved], automaticAccessReady: true,
+            now: beforeEight, recordCalendar: days, deliveryCalendar: days)
+        XCTAssertNil(earlyPlan)
+        let earlyResult = try await coordinator.submit(earlyPlan)
+        XCTAssertEqual(earlyResult, .noEligibleDay)
+        XCTAssertEqual(BackgroundSchedule.nextAttempt(after: beforeEight, importEligible: true,
+            completedDates: savedDates, calendar: days, deliveryCalendar: days), atEight)
+
+        let pending = ScreenTimeRefreshResult(attemptedDays: 1, pendingDays: 1)
+        XCTAssertFalse(pending.canNotifyLatestCompletedDay)
+        let morningCandidate = DailyGardenNotificationPlan.make(records: [saved], automaticAccessReady: true,
+            now: atEight, recordCalendar: days, deliveryCalendar: days)
+        let retryNeeded = try await coordinator.needsRetry(for: morningCandidate)
+        XCTAssertTrue(retryNeeded)
+        XCTAssertEqual(BackgroundSchedule.nextAttempt(after: atEight, importEligible: true,
+            completedDates: savedDates, notificationRetryNeeded: retryNeeded,
+            calendar: days, deliveryCalendar: days), atNine,
+            "A temporarily unavailable fresh check must keep a chance for this morning's notice")
+        var state = await client.snapshot()
+        XCTAssertTrue(state.scheduled.isEmpty, "The old saved day must not be announced after a failed check")
+
+        let fresh = ScreenTimeRefreshResult(attemptedDays: 1, importedDays: 1,
+            latestCompletedDayRefreshed: true)
+        XCTAssertTrue(fresh.canNotifyLatestCompletedDay)
+        let refreshedPlan = DailyGardenNotificationPlan.make(records: [saved], automaticAccessReady: true,
+            now: atNine, recordCalendar: days, deliveryCalendar: days)
+        let first = try await coordinator.submit(refreshedPlan)
+        let duplicate = try await coordinator.submit(refreshedPlan)
+        XCTAssertEqual(first, .scheduled)
+        XCTAssertEqual(duplicate, .alreadyReserved)
+        state = await client.snapshot()
+        XCTAssertEqual(state.scheduled.count, 1)
+        let retryAfterSending = try await coordinator.needsRetry(for: refreshedPlan)
+        XCTAssertFalse(retryAfterSending)
+        XCTAssertEqual(BackgroundSchedule.nextAttempt(after: atNine, importEligible: true,
+            completedDates: savedDates, notificationRetryNeeded: retryAfterSending,
+            calendar: days, deliveryCalendar: days), date("2026-10-22T06:00:00Z"))
+    }
+
+    // [26] Another data check is useful only while the person wants notices and iOS permits them.
+    // A reserved morning must not start a fresh round of retries.
+    func testMorningRetryStopsWhenDisabledDeniedOrAlreadyReserved() async throws {
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        let candidate = try plan()
+        let disabled = try await coordinator.needsRetry(for: candidate)
+        XCTAssertFalse(disabled)
+        try await coordinator.setEnabled(true)
+        await client.configure(authorized: false)
+        let denied = try await coordinator.needsRetry(for: candidate)
+        XCTAssertFalse(denied)
+        await client.configure()
+        let eligible = try await coordinator.needsRetry(for: candidate)
+        XCTAssertTrue(eligible)
+        let sent = try await coordinator.submit(candidate)
+        XCTAssertEqual(sent, .scheduled)
+        let reserved = try await coordinator.needsRetry(for: candidate)
+        XCTAssertFalse(reserved)
+        for retryNeeded in [disabled, denied, reserved] {
+            XCTAssertEqual(BackgroundSchedule.nextAttempt(after: candidate.deliverAt, importEligible: true,
+                completedDates: [date("2026-10-20T12:00:00Z")], notificationRetryNeeded: retryNeeded,
+                calendar: calendar(), deliveryCalendar: calendar()), date("2026-10-22T06:00:00Z"))
+        }
+        let state = await client.snapshot()
+        XCTAssertEqual(state.scheduled.count, 1)
+    }
+
+    // [27] A notice already held by iOS needs no retry, even if this local record has no date stamp.
+    func testKnownSystemNoticeAndIneligibleDayDoNotRequestMorningRetry() async throws {
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true)
+        let noDay = try await coordinator.needsRetry(for: nil)
+        XCTAssertFalse(noDay)
+        let candidate = try plan()
+        await client.configure(identifiers: [candidate.identifier])
+        let alreadyKnown = try await coordinator.needsRetry(for: candidate)
+        XCTAssertFalse(alreadyKnown)
+        XCTAssertTrue(try ledger.load().reservations.isEmpty, "This read must not reserve or send a notice")
+        let state = await client.snapshot()
+        XCTAssertTrue(state.scheduled.isEmpty)
+    }
+
     // [05] The message should describe the saved garden, without inventing new flowers or a
     // streak.
     func testCopyUsesTheSavedGardenWithoutInventingGrowthOrStreaks() throws {
@@ -347,6 +446,10 @@ final class DailyGardenNotificationTests: XCTestCase {
         let result = try await coordinator.submit(try plan())
         XCTAssertEqual(result, .disabled)
         ledger.refusesReads = true
+        do {
+            _ = try await coordinator.needsRetry(for: try plan())
+            XCTFail("A damaged ledger must stop morning retries too.")
+        } catch { }
         do {
             _ = try await coordinator.submit(try plan())
             XCTFail("A damaged ledger must stop scheduling.")
