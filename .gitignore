@@ -1,2 +1,9 @@
 .idea
 local.properties
+
+# iOS settings and local build output
+DigitalFootprintExplorer/iosApp/**/xcuserdata/
+DigitalFootprintExplorer/iosApp/DerivedData/
+DigitalFootprintExplorer/iosApp/Configuration/Local.xcconfig
+DigitalFootprintExplorer/iosApp/Configuration/Local.*.xcconfig
+DigitalFootprintExplorer/iosApp/**/*.xcresult/

@@ -52,3 +52,15 @@ Contributions are welcome! If you would like to submit bug fixes, feature reques
 3. Commit your Changes (git commit -m 'Add some AmazingFeature').
 4. Push to the Branch (git push origin feature/AmazingFeature).
 5. Open a Pull Request.
+
+## iOS app
+
+The native iPhone app is in `DigitalFootprintExplorer/iosApp/`. It reuses the shared emissions model and includes the daily garden, local history, garden widgets and optional morning notices. Usage comes from Screen Time where Apple permits access; carbon and traffic remain estimates. The app requires iOS 26.4 or later.
+
+Open `DigitalFootprintExplorer/iosApp/iosApp.xcodeproj` in Xcode with the iOS 26.4 SDK or later. Choose the `iosApp-ScreenTime` scheme and `ScreenTimeDebug` configuration. Physical-device testing also needs your team's signing settings and the required Apple capabilities.
+
+For setup, signing and the automatic-input limits, see the [iOS guide](DigitalFootprintExplorer/iosApp/README.md). Run the controlled simulator checks from the repository root with:
+
+```sh
+bash DigitalFootprintExplorer/iosApp/scripts/ios-check.sh
+```

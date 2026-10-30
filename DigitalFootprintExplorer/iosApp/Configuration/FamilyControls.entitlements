@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- [01] This asks for the standard Screen Time capability. A signed profile and the user's permission are
+	     still required. -->
+	<key>com.apple.developer.family-controls</key>
+	<true/>
+	<!-- [02] The group connects the app and widget storage; it does not bypass Apple's limits on protected usage
+	     data. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>$(DFE_APP_GROUP_IDENTIFIER)</string>
+	</array>
+</dict>
+</plist>

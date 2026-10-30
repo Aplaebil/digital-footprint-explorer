@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Help with automatic estimates, local settings and the garden widget in Digital Footprint Explorer for iOS." />
+  <title>iOS support · Digital Footprint Explorer</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="ios-pages.css" />
+</head>
+<body class="ios-support">
+  <a class="skip-link" href="#support-content">Skip to help</a>
+  <!-- [02] Give visitors a direct route back to the project and its reviewed privacy policy. -->
+  <header>
+    <div class="container nav support-nav">
+      <a href="index.html" aria-label="Digital Footprint Explorer home">
+        <img src="images/zhaw_rgb.png" alt="ZHAW" />
+      </a>
+      <strong>Digital Footprint Explorer</strong>
+      <nav class="support-nav-links" aria-label="Project pages">
+        <a href="index.html">Project</a>
+        <a href="privacy-policy.html">iOS privacy policy</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- [03] Keep setup, missing-data limits and customer choices together so help follows the real app journey. -->
+  <main id="support-content" class="container support-content">
+    <section class="card">
+      <h1>Help with the iOS version</h1>
+      <p>The DFE Team supports the Digital Footprint Explorer iOS app within School of Engineering ZHAW and handles privacy and support questions through the project email address below.</p>
+      <p class="muted">The iOS version is being prepared for release. These pages explain the planned customer experience and the access limits that still apply.</p>
+      <p>The garden shows changes in estimated phone use. It is a model result, rather than a direct measurement of energy use or carbon emissions.</p>
+    </section>
+
+    <section class="card">
+      <h2>Getting started</h2>
+      <p>The automatic version needs iOS 26.4 or later and Apple's expanded Screen Time access. Open Automatic setup, read what the app will use, and allow access in Apple's permission screen. Once access is available, the app starts automatic estimates. You do not select individual apps or enter daily minutes. This setup is kept while access remains valid; if Apple later removes or replaces that access, the app can ask you to reconnect.</p>
+      <p>The app uses the application activity that Apple makes available. Local rules group recognised apps into footprint categories; other apps stay in Other apps. It does not read what you do inside an app.</p>
+      <p>Usage time is the automatic input. Data traffic, Wi-Fi share, screen brightness and GPS/Bluetooth time remain model assumptions. The app explains these assumptions alongside the estimate. Carbon results are estimates, not direct measurements.</p>
+    </section>
+
+    <section class="card">
+      <h2>Why has no daily result appeared yet?</h2>
+      <p>Automatic estimates cover days from your setup date after each day has ended. Today's usage is still changing, so it is not imported as a completed day. Your first result can appear after a completed day has usable data.</p>
+      <p>Apple may still be preparing that day's data. iOS also decides when the app can update in the background, so updates may take time. A pending result does not mean that your usage was zero. Check Screen Time in Settings and open the app again later.</p>
+      <p>For App Store customers, Apple's expanded access requires both an iPhone located in the EU and an Apple Account set to an EU country or region. Development access used for tests in Switzerland is separate. It does not allow us to promise the same access to customers in Switzerland. If access is unavailable, the app explains the reason and leaves new results pending; it does not offer manual input.</p>
+    </section>
+
+    <section class="card">
+      <h2>A little space for your day</h2>
+      <p>There is no garden name, goal or personal profile to fill in. Once a daily estimate is available, the garden and its message reflect that result compared with up to seven earlier days. The first result is a starting point, and a pending day is never treated as zero.</p>
+      <p>A lower estimate brings a greener garden; a higher estimate changes its appearance too. One day is only part of the picture. The garden is a visual guide to estimated emissions, not a measurement of damage or recovery in the environment.</p>
+      <h3>App and Home Screen appearance</h3>
+      <p>In Settings, Appearance offers Light, Dark and System. Light is the default with a white background. Your choice applies across Today, History, Settings and their detail screens.</p>
+      <p>The Home Screen icon has light and dark versions, chosen by iOS. To review that choice, touch and hold the Home Screen background, then choose Edit and Customize. Select Dark for a dark icon, or Automatic to follow the system appearance. The wallpaper image and the app's own Appearance setting are separate, so a dark wallpaper alone does not choose the dark icon.</p>
+    </section>
+
+    <section class="card">
+      <!-- [04] Explain the steps iOS allows; the app cannot place a widget on someone's Home Screen for them. -->
+      <h2>Adding the garden widget</h2>
+      <p>Open the widget guide from Today or the welcome screen. For the quickest route, touch and hold the Digital Footprint app icon on your Home Screen, then tap a small or medium widget size. This turns the icon into a widget. Tap the widget to open Today.</p>
+      <p>To keep the app icon too, touch and hold an empty area of the Home Screen, then tap Edit and Add Widget. Find Digital Footprint, choose Your garden and a size, then tap Add Widget. Use this route if widget sizes do not appear in the app icon menu.</p>
+      <p>You choose the widget's position. The app cannot place it automatically. The guide can check whether one of this app's widgets is configured, but it cannot tell exactly where it is or whether its latest update is visible. This check is not saved or sent to the project team.</p>
+      <p>The widget shows the latest saved garden, estimate, date and input source. It may show an earlier date while a new result is pending. iOS controls when updates appear. Removing the widget does not remove the app's history. See <a href="https://support.apple.com/en-ie/guide/iphone/iphb8f1bf206/27/ios/27">Apple's widget guide</a> for the Home Screen steps.</p>
+    </section>
+
+    <section class="card">
+      <!-- [05] A target time is not a delivery promise. These notes keep the local notification and system limits clear. -->
+      <h2>Optional garden updates</h2>
+      <p>In Settings, under A morning moment, turn on Daily garden update if you would like a short local notice. It is off by default and asks for Apple's notification permission only when you enable it.</p>
+      <p>The morning target is 08:00 in your local time. After a fresh import saves a valid, non-zero estimate for yesterday, the app can request one update from 08:00 until before 20:00. An older missing day does not block that update while Screen Time access remains available. Missing activity, a zero-use day or a failed import of yesterday stays quiet.</p>
+      <p>An update can be prepared after opening the app, too. DFE asks iOS to show a banner and a Notification Center entry for its daily update while the app is open. iOS, Focus, Scheduled Summary and your notification settings still decide when or whether it appears, so there is no guaranteed 08:00 message or daily delivery.</p>
+      <p>These notifications are prepared on your iPhone, with no remote push service or activity upload. Turn Daily garden update off in Settings whenever you like. This does not disconnect Screen Time. If a notice does not appear, check this choice and the app's notification settings in iPhone Settings.</p>
+    </section>
+
+    <section class="card">
+      <!-- [06] Deleting DFE history and removing Apple permission are different choices, so explain both. -->
+      <h2>Your choices and local data</h2>
+      <p>To stop new Screen Time imports, choose Disconnect Screen Time in Settings. Your saved daily estimates remain available. Choose Delete all entries and confirm the warning to remove local history, saved setup, the shared widget summary, and your appearance choice.</p>
+      <p>Deleting entries also turns Daily garden update off, clears its local delivery log and cancels pending notices. Messages already shown in Notification Center stay there until you clear them.</p>
+      <p>Deleting local data does not remove Apple's Screen Time or notification permission. Use Disconnect Screen Time to remove activity access, or iPhone Settings to change notification permission. The app cannot delete Apple's own Screen Time records or recall files and backups made earlier.</p>
+      <p>The app does not send your usage history to the DFE team or a project server. History that has contained a Screen Time import cannot be exported. Read the <a href="privacy-policy.html">iOS privacy policy</a> for the reviewed local-data details.</p>
+    </section>
+
+    <section class="card">
+      <h2>Contact the project</h2>
+      <p>For privacy or support questions, contact the DFE Team at <a href="mailto:digital-footprint-explorer.init@zhaw.ch">digital-footprint-explorer.init@zhaw.ch</a>.</p>
+      <p>If something fails, include the app version, your iOS version and a short description of the steps. Please do not send your Screen Time history, passwords, device identifier or other private files. Review any screenshot before sharing it.</p>
+      <p>If you email us, your message and email address are handled through ZHAW's email service so we can reply. Do not include private activity records. Deleting entries in the app does not remove emails you have sent; contact us if you have a question about a previous message.</p>
+      <p>This website uses GitHub Pages. Opening a page sends connection details, such as your IP address, to the hosting service. The pages contain no advertising or analytics code. See <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a> for how the hosting service handles these details.</p>
+      <p class="muted">Last updated: <time datetime="2026-10-30">30 October 2026</time>. The DFE Team is responsible for the app and handles questions through the project email above.</p>
+    </section>
+  </main>
+
+  <!-- [07] The team contact above handles support; this line records the organisation credit. -->
+  <footer class="footer">
+    <div class="container">
+      <p class="muted">© 2026 Zurich University of Applied Sciences (ZHAW) · Digital Footprint Explorer</p>
+    </div>
+  </footer>
+</body>
+</html>

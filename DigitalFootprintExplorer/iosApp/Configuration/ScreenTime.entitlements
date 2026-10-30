@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- [01] The Screen Time build needs this basic capability as well as the separate usage-data capability below. -->
+	<key>com.apple.developer.family-controls</key>
+	<true/>
+	<!-- [02] This requests expanded usage access. The profile, user consent and Apple's regional conditions still
+	     decide whether it is available. -->
+	<key>com.apple.developer.family-controls.app-and-website-usage</key>
+	<true/>
+	<!-- [03] Share the app's saved garden summary with the widget using the same registered group. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>$(DFE_APP_GROUP_IDENTIFIER)</string>
+	</array>
+</dict>
+</plist>

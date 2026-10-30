@@ -1,0 +1,44 @@
+/* [01] Keep new iOS help readable without changing the existing Android project page. */
+.ios-support {
+  --bg: #f5f8f6;
+  --surface: #ffffff;
+  --text: #17251d;
+  --muted: #45564a;
+  --primary: #17613b;
+  --border: #d9e2dc;
+  background: var(--bg);
+}
+.ios-support .support-nav { flex-wrap: wrap; }
+.ios-support .support-nav img { height: 48px; width: auto; }
+.support-nav-links, .ios-public-links { display: flex; gap: .5rem 1rem; flex-wrap: wrap; }
+.support-nav-links a, .ios-public-links a { padding-block: .5rem; }
+.ios-support .support-content { max-width: 860px; }
+.ios-support .support-content p, .ios-support .support-content a { overflow-wrap: anywhere; }
+.ios-support .support-content .card + .card { margin-top: 1.5rem; }
+.ios-support .support-content h2 { margin-top: 0; }
+.ios-support a { text-decoration: underline; text-underline-offset: .2em; }
+.ios-support a:focus-visible, .ios-public-links a:focus-visible {
+  outline: 3px solid currentColor; outline-offset: 4px;
+}
+/* [02] A visible keyboard route avoids moving through every navigation link first. */
+.ios-support .skip-link { position: absolute; top: -5rem; left: 1rem; z-index: 20; background: var(--surface); padding: .75rem 1rem; }
+.ios-support .skip-link:focus { top: 1rem; }
+@media (max-width: 480px) {
+  .ios-support .support-nav img { height: 40px; }
+  .ios-support .support-nav strong { flex: 1; min-width: 10rem; }
+}
+/* [03] The help follows the reader's system appearance; print keeps a plain light page. */
+@media (prefers-color-scheme: dark) {
+  .ios-support {
+    color-scheme: dark;
+    --bg: #0f1913; --surface: #142019; --text: #f0f7f2;
+    --muted: #c2d0c6; --primary: #a2e4ba; --border: #405247;
+  }
+  .ios-support header { background: rgba(20, 32, 25, .94); }
+}
+@media print {
+  .ios-support { --bg: #fff; --surface: #fff; --text: #000; --muted: #333; --primary: #000; --border: #ccc; }
+  .ios-support header { position: static; background: #fff; }
+  .ios-support .card { box-shadow: none; }
+  .ios-support h2, .ios-support h3 { break-after: avoid; }
+}
