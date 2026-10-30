@@ -10,7 +10,7 @@ These previews use isolated example history. They show the interface, not measur
 
 ## Build and run
 
-Use a Mac with Xcode, the iOS 26.4 or later SDK, JDK 17 and an installed iPhone simulator. The app and widget require iOS 26.4 or later. The Gradle wrapper in `DigitalFootprintExplorer/` builds the neighbouring `shared/` module; there is no separate copy of the calculation model in Swift.
+Use a Mac with Xcode 27.1, JDK 17 and an installed iPhone simulator. The build needs the iOS 27 SDK for the newer background-task API; the app and widget can run on iOS 26.4 or later. The Gradle wrapper in `DigitalFootprintExplorer/` builds the neighbouring `shared/` module; there is no separate copy of the calculation model in Swift.
 
 1. Open `DigitalFootprintExplorer/iosApp/iosApp.xcodeproj` from the repository root.
 2. Select `iosApp-ScreenTime`, then choose an iPhone simulator and run. Xcode builds the shared framework before the app.
@@ -42,11 +42,13 @@ bash DigitalFootprintExplorer/iosApp/scripts/ios-check.sh
 
 The last command runs all 24 shared calculation tests, including the iOS bridge and the corrected time-unit fixtures, followed by the controlled native unit tests. Set `DFE_SIMULATOR_ID` to choose a particular installed simulator. It writes an `.xcresult` bundle outside the repository by default and prints its path. These tests use isolated stores and do not request personal Screen Time access.
 
+GitHub Actions runs these checks for pull requests to `main` and saves the logs, shared reports and `.xcresult` as an artifact for 14 days. The workflow uses GitHub's arm64 `xcode-27` preview image with Xcode 27.1. It does not use signing credentials or run the live Screen Time phone tests. A maintainer may need to approve the first run from a fork; adding the workflow is not evidence that its hosted run has passed.
+
 To run the interface tests, replace the destination below with an installed iPhone simulator:
 
 ```sh
 xcodebuild -project DigitalFootprintExplorer/iosApp/iosApp.xcodeproj \
-  -scheme iosApp-ScreenTime -configuration ScreenTimeDebug \
+  -scheme iosApp -configuration ScreenTimeDebug \
   -destination 'platform=iOS Simulator,name=iPhone 18 Pro Max' \
   -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
   -only-testing:iosAppUITests test
@@ -61,6 +63,8 @@ Edit the policy in `Configuration/PrivacyPolicyContent.json`, then run `scripts/
 The generated public files are `docs/privacy-policy.html`, `docs/privacy-policy.md` and `docs/privacy-policy-content.json` at the repository root. Generating them does not deploy the website. GitHub Pages publishes the repository's approved website source after the pull request is merged.
 
 `scripts/check-ios-release.py` inspects a built bundle or archive without uploading it or changing signing resources. Pass `--require-store` when a distribution signature, approved public URLs and matching Store profiles are required. Its `--project-root` input is the repository root.
+
+The export options and Store checker target the ZHAW release identity. Development signing still comes from your ignored `Local.xcconfig`; cloning the project does not select the ZHAW team.
 
 ```text
 DigitalFootprintExplorer/iosApp/
@@ -80,4 +84,4 @@ The app remains under review. A release still needs a validated distribution bui
 
 ## Public pages and contact
 
-DFE Team maintains the app, with [Ettore Ferranti](mailto:feaa@zhaw.ch) as the privacy and support contact. The policy and support pages are included under the repository’s `docs/` folder in the same final pull request. Their HTTPS addresses are set in `Configuration/Config.xcconfig`; verify that GitHub Pages has deployed both pages before uploading a release. A pending deployment is a release gate. The offline policy remains available without visiting the website.
+DFE Team maintains the app and handles privacy and support questions at [digital-footprint-explorer.init@zhaw.ch](mailto:digital-footprint-explorer.init@zhaw.ch). The policy and support pages are included under the repository’s `docs/` folder in the same final pull request. Their HTTPS addresses are set in `Configuration/Config.xcconfig`; verify that GitHub Pages has deployed both pages before uploading a release. A pending deployment is a release gate. The offline policy remains available without visiting the website.
