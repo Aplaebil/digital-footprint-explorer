@@ -6,7 +6,7 @@ Digital Footprint Explorer (DFE) is a mobile application developed at the Zurich
 
 **Screen Time provides available app usage time on iOS. Carbon emissions, data traffic and power use remain estimates.** The garden reflects those estimates; it does not measure changes in the environment.
 
-This branch, `proposal/repository-layout`, keeps the current app in an alternative folder layout. [PR #15](https://github.com/ZHAW-InIT-SoftwareEngineering/digital-footprint-explorer/pull/15) contains the final app, calculation-test corrections and public privacy/support pages in the original repository structure. Both versions keep the same app design, functions and shared calculation model. This branch provides a folder comparison and does not need another pull request.
+This branch, `proposal/repository-layout`, keeps an alternative folder layout. [PR #15](https://github.com/ZHAW-InIT-SoftwareEngineering/digital-footprint-explorer/pull/15) introduced the iOS app, calculation-test corrections and public privacy/support pages in the original repository structure. Both layouts keep the same current app design, functions and shared calculation model. This branch provides a folder comparison and does not need another pull request.
 
 ## A look inside
 
@@ -28,7 +28,7 @@ These simulator previews use isolated example history, with no personal activity
 - **A clear daily picture.** Today shows the latest completed date, garden and CO₂e estimate. The explanation includes app categories, screen and background contributions, plus device, network and server estimates.
 - **Useful history and suggestions.** Saved days keep their original inputs and results. Tips suggest practical changes, such as turning off autoplay or choosing a stopping point, based on the available category estimates.
 - **Small and medium garden widgets.** Both show the latest saved garden, estimate and date. Tapping a widget opens Today. The app explains how to add them; iOS controls their placement and refresh timing.
-- **Optional morning updates.** Local notifications aim for around 08:00 in the user's time zone, after a usable estimate is available. The app plans at most one garden notice per local day. Tapping it opens Today.
+- **Optional morning updates.** Local reminders are saved for the next 30 mornings, around 08:00 in the user's time zone, and can appear with the app closed. Wording varies by local date, without a personal profile. A generic invitation does not claim that a fresh estimate exists; a valid result may replace the same pending message before it is due. At most one reminder is planned per local day. Tapping it opens Today.
 - **Consistent appearance.** Light, Dark and System themes apply across tabs and detail views. Light uses a white background. Native Liquid Glass controls follow iOS, and the app includes separate light and dark Home Screen icons.
 - **Refresh across all tabs.** Pull down in Today, History or Settings to check for newer available activity. The completed date stays visible, so an older result is not presented as today's data.
 - **Accessible controls.** The interface supports larger text and VoiceOver. Connection state uses words and symbols as well as colour, and destructive actions have separate native confirmations.
@@ -38,9 +38,9 @@ These simulator previews use isolated example history, with no personal activity
 
 After the user grants usable Screen Time access, DFE saves the all-activity setup and imports app durations for completed days. Local rules group known apps into categories. Unmatched apps remain under **Other apps**, so the user does not need to choose or classify individual apps.
 
-The shared model uses those durations to calculate an estimate. Traffic rates, Wi-Fi share, brightness, GPS and Bluetooth use described starting assumptions. The app does not read these values from other apps or directly measure their carbon emissions. Missing or incomplete activity stays pending instead of becoming a made-up result.
+The shared model uses those durations to calculate an estimate. Traffic rates, Wi-Fi share, brightness, GPS and Bluetooth follow the saved calculation assumptions, including valid zero traffic values from an earlier routine. The app does not read these values from other apps or directly measure their carbon emissions. Compare the actual completed date and current iPhone, rather than a weekly average. Apple's available app durations may still differ from Settings for the same phone and day; their coverage must not be presented as independently verified. Missing activity is never filled with invented minutes.
 
-Imports can run when the app opens, during a manual refresh and when iOS permits background work. The app then saves a small summary for its widgets. Exact background timing and an 08:00 notification are not guaranteed: iOS scheduling, available activity and notification settings affect delivery.
+Imports can run when the app opens, during a manual refresh and when iOS permits background work. The app then saves a small summary for its widgets. A saved reminder does not run an import or update a widget. Force-quitting normally stops new background calculations until the app is opened again, while previously scheduled reminders can still appear. App use or permitted background time renews their 30-day schedule. Exact timing and daily delivery are not guaranteed: iOS and notification settings affect what appears.
 
 The expanded Screen Time route requires iOS 26.4 or later, the correct signed Family Controls and App and Website Usage capabilities, and the user's authorization. The app and widget share an App Group; the widget itself needs no Screen Time entitlement. Development access does not prove App Store customer availability in every country. See the [iOS guide](apps/ios/README.md#automatic-estimates-and-privacy) for Apple's access conditions and the remaining release checks.
 
@@ -48,7 +48,7 @@ The expanded Screen Time route requires iOS 26.4 or later, the correct signed Fa
 
 Activity and calculations stay on the iPhone. DFE has no usage-upload service, advertising tracker or remote push server. It does not read message content, contacts or browsing content. Only the saved garden summary is shared locally with the widget, and history containing Screen Time data cannot be exported.
 
-Notification permission is optional and separate from Screen Time. Settings provides the offline privacy policy, connection controls, notification preference and appearance choices. DFE Team is responsible for privacy and support at [digital-footprint-explorer.init@zhaw.ch](mailto:digital-footprint-explorer.init@zhaw.ch). The [privacy policy](docs/privacy-policy.html) and [support page](docs/support-ios.html) are included in the final PR #15. Their HTTPS addresses are configured in the app; verify the GitHub Pages deployment after merge and before release.
+Notification permission is optional and separate from Screen Time. Settings provides the offline privacy policy, connection controls, notification preference and appearance choices. DFE Team is responsible for privacy and support at [digital-footprint-explorer.init@zhaw.ch](mailto:digital-footprint-explorer.init@zhaw.ch). The [privacy policy](docs/privacy-policy.html) and [support page](docs/support-ios.html) have sources in this repository. Their HTTPS addresses are configured in the app; verify the GitHub Pages deployment after each accepted update and before release.
 
 ## Repository layout
 
