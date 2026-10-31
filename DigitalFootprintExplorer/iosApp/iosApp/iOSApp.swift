@@ -139,6 +139,16 @@ final class ApplicationDelegate: NSObject, UIApplicationDelegate {
         gardenNotificationDelegate = notificationDelegate
         UNUserNotificationCenter.current().delegate = notificationDelegate
         services.background.register()
+        #if DEBUG
+        // [12] A named development launch can prepare one labelled delivery check without
+        // keeping a debugger attached. Ordinary launches never request this test reminder.
+        if ProcessInfo.processInfo.arguments.contains("-dfe-force-quit-reminder-test") {
+            Task { @MainActor in
+                await services.notifications.scheduleForceQuitReminderTest()
+                await services.notifications.captureTechnicalState()
+            }
+        }
+        #endif
         return true
     }
 }

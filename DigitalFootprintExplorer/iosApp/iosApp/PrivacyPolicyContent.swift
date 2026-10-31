@@ -29,8 +29,8 @@ struct PrivacyPolicySection: Identifiable {
 enum PrivacyPolicyContent {
     static let appName = "Digital Footprint Explorer"
     static let title = "Privacy policy"
-    static let revision = "2026-10-30"
-    static let updatedText = "Last updated: 30 October 2026"
+    static let revision = "2026-10-31"
+    static let updatedText = "Last updated: 31 October 2026"
     static let contactURL = URL(string: "mailto:digital-footprint-explorer.init@zhaw.ch")!
     static let introduction = [
         "Digital Footprint Explorer helps you understand an estimated carbon footprint of your phone use. Your settings, calculations and history are processed on your iPhone. You do not need an app account.",
@@ -63,7 +63,7 @@ enum PrivacyPolicyContent {
             paragraphs: [
                 "The app uses these inputs to calculate daily estimates, show your history and compare a day with up to seven earlier days. This comparison changes the garden shown in the app.",
                 "Updates can run when you open the app or when iOS gives it time in the background. iOS controls background timing, so a new estimate may not appear straight after midnight. Screen Time supplies app usage duration; the other inputs remain estimates.",
-                "If you turn on the optional Daily garden update, the app can also prepare a short local notification after a completed day's estimate is ready. The morning target is 08:00, but iOS may give the app time to update later."
+                "If you turn on the optional Daily garden update, the app schedules a short local morning reminder. It can invite you back even when the app is closed. A reminder does not mean that a new estimate is ready."
             ]
         ),
         PrivacyPolicySection(
@@ -72,7 +72,7 @@ enum PrivacyPolicyContent {
             paragraphs: [
                 "Your daily history and settings are kept in the app's local storage. The history and widget files use iOS file protection. The app does not upload them to a project server, and it has no separate cloud account or sync service.",
                 "Your appearance choice stays in the app's local settings and changes only the display. Garden messages follow the saved estimate and its comparison with earlier days; there is no name, goal or personal profile to fill in.",
-                "The optional notification setting and a small delivery log also stay in local storage. The log keeps saved-day and delivery dates, the time an update was prepared and the local time zone. These details help prevent repeat notifications; the log does not contain app names, app identifiers or usage times.",
+                "The optional notification setting and a small schedule and delivery log also stay in local storage. The log keeps delivery dates, scheduled times, local time zone information and, for a result-based message, the saved-day date. These details help prevent repeat notifications; the log does not contain app names, app identifiers or usage times.",
                 "Your iPhone's backup settings may include app data in an Apple or computer backup. Those backups are managed outside this app. You can review and remove them through Apple's backup settings."
             ]
         ),
@@ -90,11 +90,13 @@ enum PrivacyPolicyContent {
             title: "Optional garden updates",
             paragraphs: [
                 "Daily garden update is off by default. If you turn it on in Settings, the app asks for Apple's notification permission. This is separate from Screen Time access. The app does not ask for notification permission when you first open it.",
-                "An update can be prepared only after a fresh import has saved a valid estimate for yesterday with usable, non-zero Screen Time activity. The app checks the device's current local time and sends updates from 08:00 until before 20:00. It does not queue a future message before an estimate is ready. Missing activity, a zero-use day, unavailable access or a failed import of yesterday produces no update. A problem with an older pending day does not block an update for a valid saved yesterday.",
-                "The message describes the actual saved garden state and, when available, its change from an earlier completed day. It does not include app names, individual usage times or a carbon value. Tapping it opens Today. A local log helps limit updates to one for each saved day and one in each local delivery day.",
-                "iOS controls when the app can refresh in the background, so an update is not guaranteed at 08:00 or every day. Focus, Scheduled Summary and your notification settings can also delay or hide it. A new message does not prove that iOS updated the app at an exact time.",
+                "The app schedules one reminder per local day at around 08:00 for the next 30 mornings. iOS can display these saved reminders while DFE is closed, including after you remove it from multitasking. The app renews this schedule when you use it or when iOS gives it background time. If it cannot run for more than 30 days, the saved reminders end until the app can prepare more.",
+                "A general reminder invites you to explore your latest saved garden. It does not say that yesterday's estimate is ready or that your garden has changed. It can still appear when activity is missing, access is unavailable or there was no usable activity. Those cases do not become invented estimates.",
+                "Before a saved reminder is due, a fresh import may replace its message with a short summary of a valid, non-zero estimate for yesterday. This uses the same pending reminder, rather than adding another. Once that day's reminder may have appeared, a later import does not send a second summary, even if you dismissed the first message.",
+                "A result-based message describes the actual saved garden and, when available, its change from an earlier completed day. Neither type includes app names, individual usage times or a carbon value. Tapping either opens Today. A local date log helps limit messages to one in each local delivery day.",
+                "Reminders use local calendar dates and times. The app checks the schedule again when it can run after a clock or time zone change. iOS, Focus, Scheduled Summary and notification settings can delay or hide a message, so an exact 08:00 delivery or a message every day is not guaranteed. A message does not prove that Screen Time, the garden or the widgets refreshed. Removing DFE from multitasking normally stops fresh background calculations until you open it again.",
                 "These are local notifications prepared on your iPhone. They do not use an app server, remote push notifications or a data upload. Depending on your iOS settings, a garden message may appear on the Lock Screen or in Notification Center, where someone who can see your phone may read it.",
-                "You can turn Daily garden update off in the app or manage notification permission in iPhone settings. Turning it off in the app cancels this feature's pending messages, but keeps its delivery dates to avoid repeats. Messages already shown in Notification Center remain until you clear them there. Turning notifications off does not disconnect Screen Time or delete your saved estimates."
+                "You can turn Daily garden update off in the app or manage notification permission in iPhone settings. Turning it off in the app cancels this feature's pending messages, but keeps its delivery dates to avoid repeats. Messages already shown in Notification Center remain until you clear them there. Turning notifications off does not disconnect Screen Time or delete your saved estimates. Disconnecting Screen Time leaves the separate reminder choice unchanged; turn Daily garden update off too if you do not want reminders."
             ]
         ),
         PrivacyPolicySection(

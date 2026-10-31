@@ -29,6 +29,9 @@ extension ScreenTimeRefreshResult {
 struct DailyGardenNotificationPlan: Codable, Equatable, Sendable {
     static let prefix = "dfe.garden.daily."
     static let gardenURL = "digitalfootprint://today"
+    enum Kind: String, Codable, Sendable { case estimate, reminder }
+    var kind: Kind = .estimate
+    var scheduledForMorning = false
     let deliveryDay: String
     let recordDay: String
     let title: String
@@ -60,7 +63,8 @@ struct DailyGardenNotificationPlan: Codable, Equatable, Sendable {
               (try? record.inputs.validate()) != nil,
               (try? record.result.validate()) != nil else { return nil }
         // [05] A late import should not wake someone at night or describe an older day as yesterday.
-        guard (8..<20).contains(deliveryCalendar.component(.hour, from: now)) else { return nil }
+        guard deliveryCalendar.component(.hour, from: now) < 20,
+              let morning = deliveryCalendar.date(bySettingHour: 8, minute: 0, second: 0, of: now) else { return nil }
         // [06] Only yesterday's immediate neighbour can show a day-to-day change.
         // Older gaps or manual entries do not establish an automatic transition.
         let previousKey = recordCalendar.date(byAdding: .day, value: -1, to: yesterday).map(recordDays.key)
@@ -72,8 +76,26 @@ struct DailyGardenNotificationPlan: Codable, Equatable, Sendable {
                 && (try? candidate.result.validate()) != nil
         }
         let content = message(for: record, previous: previous)
-        return Self(deliveryDay: localDays.key(now), recordDay: record.day, title: content.title,
-            body: content.body, deliverAt: now, timeZoneIdentifier: deliveryCalendar.timeZone.identifier)
+        return Self(scheduledForMorning: now < morning, deliveryDay: localDays.key(now),
+            recordDay: record.day, title: content.title, body: content.body,
+            deliverAt: max(now, morning), timeZoneIdentifier: deliveryCalendar.timeZone.identifier)
+    }
+
+    // [17] Book a few mornings ahead, like leaving dated notes with iOS.
+    // The invitation never claims that an estimate has already been calculated.
+    static func morningReminders(after now: Date, calendar: Calendar = FootprintCalendar.localCalendar,
+                                 count: Int = 30) -> [Self] {
+        guard count > 0,
+              let morning = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: now) else { return [] }
+        let first = morning > now ? 0 : 1
+        let days = FootprintCalendar(calendar: calendar)
+        return (first..<(first + min(count, 30))).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: morning) else { return nil }
+            return Self(kind: .reminder, scheduledForMorning: true, deliveryDay: days.key(date), recordDay: "",
+                title: "A Moment for Your Garden",
+                body: "What will your digital day look like? Open your garden to explore your latest estimate.",
+                deliverAt: date, timeZoneIdentifier: calendar.timeZone.identifier)
+        }
     }
 
     // [07] Make the invitation match the saved garden. Keep usage details off the lock screen,
@@ -114,6 +136,20 @@ struct DailyGardenNotificationPlan: Codable, Equatable, Sendable {
 struct DailyGardenNotificationLedger: Codable, Equatable, Sendable {
     var enabled = false
     var reservations: [Reservation] = []
+    var reminders: [MorningReminder] = []
+    struct MorningReminder: Codable, Equatable, Sendable {
+        let deliveryDay: String
+        let deliverAt: Date
+        let timeZoneIdentifier: String
+
+        // [18] A traveller may reach eight o'clock earlier in a new time zone.
+        // Count either deadline as used, so a dismissed reminder cannot be followed by a second alert.
+        func mayHaveDelivered(at now: Date, calendar: Calendar) -> Bool {
+            guard let day = FootprintCalendar(calendar: calendar).date(deliveryDay),
+                  let localMorning = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: day) else { return true }
+            return deliverAt <= now || localMorning <= now
+        }
+    }
     struct Reservation: Codable, Equatable, Sendable {
         let deliveryDay: String
         let recordDay: String
@@ -121,7 +157,18 @@ struct DailyGardenNotificationLedger: Codable, Equatable, Sendable {
         let timeZoneIdentifier: String
     }
     func contains(_ plan: DailyGardenNotificationPlan) -> Bool {
-        reservations.contains { $0.deliveryDay == plan.deliveryDay || $0.recordDay == plan.recordDay }
+        reservations.contains { $0.deliveryDay == plan.deliveryDay || (!plan.recordDay.isEmpty && $0.recordDay == plan.recordDay) }
+    }
+}
+
+// [19] People keep their existing notice choice when this small record gains reminder dates.
+extension DailyGardenNotificationLedger {
+    private enum CodingKeys: String, CodingKey { case enabled, reservations, reminders }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try values.decode(Bool.self, forKey: .enabled)
+        reservations = try values.decode([Reservation].self, forKey: .reservations)
+        reminders = try values.decodeIfPresent([MorningReminder].self, forKey: .reminders) ?? []
     }
 }
 
@@ -181,13 +228,15 @@ actor DailyGardenNotificationCoordinator {
 
     // [16] A saved day may still need a fresh morning check. Read the same daily limits
     // used for sending, without reserving a date or publishing the older result.
-    func needsRetry(for plan: DailyGardenNotificationPlan?) async throws -> Bool {
+    func needsRetry(for plan: DailyGardenNotificationPlan?, now: Date = Date(),
+                    calendar: Calendar = FootprintCalendar.localCalendar) async throws -> Bool {
         let previous = tail
         let work = Task {
             await previous?.value
             try Task.checkCancellation()
             let ledger = try ledgerStore.load()
             guard ledger.enabled, let plan, !ledger.contains(plan),
+                  !ledger.reminders.contains(where: { $0.deliveryDay == plan.deliveryDay && $0.mayHaveDelivered(at: now, calendar: calendar) }),
                   await client.isAuthorized() else { return false }
             let existing = await client.requestState()
             return !existing.identifiers.contains(plan.identifier)
@@ -200,7 +249,8 @@ actor DailyGardenNotificationCoordinator {
         }
     }
 
-    func setEnabled(_ enabled: Bool) async throws {
+    func setEnabled(_ enabled: Bool, now: Date = Date(),
+                    calendar: Calendar = FootprintCalendar.localCalendar) async throws {
         let previous = tail
         let work = Task {
             await previous?.value
@@ -211,6 +261,8 @@ actor DailyGardenNotificationCoordinator {
             }
             var ledger = try ledgerStore.load()
             ledger.enabled = enabled
+            // [23] Cancellation can finish just after eight. Keep the date stamps even
+            // when turning reminders off, in case iOS already displayed that morning's card.
             try ledgerStore.save(ledger)
         }
         tail = Task { _ = try? await work.value }
@@ -230,9 +282,69 @@ actor DailyGardenNotificationCoordinator {
         try await work.value
     }
 
-    // [14] Check the saved choice, Apple permission and existing notices in one queue.
-    // Two refreshes arriving together must not both send the same daily update.
-    func submit(_ plan: DailyGardenNotificationPlan?) async throws -> GardenNotificationSubmission {
+    // [20] Prepare one dated invitation per morning. iOS can display it even after
+    // the person closes DFE; it does not need a new Screen Time query to do so.
+    func prepareMorningReminders(now: Date, calendar: Calendar = FootprintCalendar.localCalendar,
+                                 days: Int = 30) async throws -> GardenNotificationSubmission {
+        let previous = tail
+        let work = Task {
+            await previous?.value
+            try Task.checkCancellation()
+            var ledger = try ledgerStore.load()
+            guard ledger.enabled else { return GardenNotificationSubmission.disabled }
+            var existing = await client.requestState()
+            guard await client.isAuthorized() else {
+                await client.remove(identifiers: existing.pendingIdentifiers.filter { $0.hasPrefix(DailyGardenNotificationPlan.prefix) })
+                return .denied
+            }
+            let plans = DailyGardenNotificationPlan.morningReminders(after: now, calendar: calendar, count: days)
+            let wanted = Set(plans.map(\.identifier))
+            let obsolete = ledger.reminders.filter { reminder in
+                !reminder.mayHaveDelivered(at: now, calendar: calendar)
+                    && !wanted.contains(DailyGardenNotificationPlan.prefix + reminder.deliveryDay)
+                    && !ledger.reservations.contains(where: { $0.deliveryDay == reminder.deliveryDay })
+            }
+            // [21] Only remove this feature's future placeholders; a delivered date stays stamped.
+            let obsoleteIDs = obsolete.map { DailyGardenNotificationPlan.prefix + $0.deliveryDay }
+            if !obsoleteIDs.isEmpty {
+                await client.remove(identifiers: obsoleteIDs)
+                // [24] Replanning cancels pending requests, not their safety record.
+                // A future date can still be repaired with the same identifier before it is due.
+                existing.pendingIdentifiers.removeAll { obsoleteIDs.contains($0) }
+            }
+            var changed = false
+            var failed = false
+            for plan in plans {
+                try Task.checkCancellation()
+                guard !ledger.contains(plan), !existing.deliveredIdentifiers.contains(plan.identifier) else { continue }
+                let slot = ledger.reminders.first { $0.deliveryDay == plan.deliveryDay }
+                guard slot?.mayHaveDelivered(at: now, calendar: calendar) != true else { continue }
+                let needsNewZone = slot.map { $0.timeZoneIdentifier != plan.timeZoneIdentifier } ?? false
+                if existing.pendingIdentifiers.contains(plan.identifier) && !needsNewZone { continue }
+                // [22] Save first. If iOS accepts a request just as the app stops, the next launch
+                // must still know that this morning may already have had its one invitation.
+                ledger.reminders.removeAll { $0.deliveryDay == plan.deliveryDay }
+                ledger.reminders.append(.init(deliveryDay: plan.deliveryDay, deliverAt: plan.deliverAt,
+                    timeZoneIdentifier: plan.timeZoneIdentifier))
+                try ledgerStore.save(ledger)
+                do {
+                    try Task.checkCancellation()
+                    try await client.add(plan)
+                    existing.pendingIdentifiers.append(plan.identifier)
+                    changed = true
+                } catch is CancellationError { throw CancellationError() }
+                catch { failed = true }
+            }
+            return failed ? .schedulingFailed : (changed ? .scheduled : .alreadyReserved)
+        }
+        tail = Task { _ = try? await work.value }
+        return try await withTaskCancellationHandler { try await work.value } onCancel: { work.cancel() }
+    }
+
+    // [14] A fresh result may replace a future invitation with the same identifier.
+    // After its deadline, keep the daily limit even if its banner has been dismissed.
+    func submit(_ plan: DailyGardenNotificationPlan?, now: Date = Date(),
+                calendar: Calendar = FootprintCalendar.localCalendar) async throws -> GardenNotificationSubmission {
         let previous = tail
         let work = Task {
             await previous?.value
@@ -247,13 +359,18 @@ actor DailyGardenNotificationCoordinator {
             guard let plan else { return .noEligibleDay }
             let existing = await client.requestState()
             guard !ledger.contains(plan) else { return .alreadyReserved }
-            guard !existing.identifiers.contains(plan.identifier) else {
+            let reminder = ledger.reminders.first { $0.deliveryDay == plan.deliveryDay }
+            guard reminder?.mayHaveDelivered(at: now, calendar: calendar) != true else { return .alreadyReserved }
+            let canReplace = reminder != nil && plan.scheduledForMorning && plan.deliverAt > now
+                && existing.pendingIdentifiers.contains(plan.identifier)
+                && !existing.deliveredIdentifiers.contains(plan.identifier)
+            guard canReplace || !existing.identifiers.contains(plan.identifier) else {
                 ledger.reservations.append(.init(deliveryDay: plan.deliveryDay, recordDay: plan.recordDay,
                     reservedAt: plan.deliverAt, timeZoneIdentifier: plan.timeZoneIdentifier))
                 try ledgerStore.save(ledger)
                 return .alreadyReserved
             }
-            // [15] Save the date stamp before sending. A crash or unclear failure may skip one notice,
+            // [15] Save the date stamp before sending. An unclear failure may skip one notice,
             // but trying again must not turn that uncertainty into a second alert.
             try Task.checkCancellation()
             ledger.reservations.append(.init(deliveryDay: plan.deliveryDay, recordDay: plan.recordDay,
@@ -263,17 +380,10 @@ actor DailyGardenNotificationCoordinator {
                 try Task.checkCancellation()
                 try await client.add(plan)
                 return .scheduled
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch {
-                return .schedulingFailed
-            }
+            } catch is CancellationError { throw CancellationError() }
+            catch { return .schedulingFailed }
         }
         tail = Task { _ = try? await work.value }
-        return try await withTaskCancellationHandler {
-            try await work.value
-        } onCancel: {
-            work.cancel()
-        }
+        return try await withTaskCancellationHandler { try await work.value } onCancel: { work.cancel() }
     }
 }

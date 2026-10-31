@@ -29,7 +29,7 @@ PREVIEW_MARKERS = (
     b'-ui-disconnect-preview', b'-ui-revoked-preview',
     b'dfe.screenTime.debug.lastScopeMutation.v1', b'dfe.screenTime.debug.lastScopeMutationAt.v1',
     b'DFEBackgroundDebugBridge', b'DFEBackgroundDiagnostics', b'DFENotificationDiagnostics',
-    b'dfe-background-probe-',
+    b'dfe-background-probe-', b'scheduleForceQuitReminderTest', b'DFE Reminder Test', b'-dfe-force-quit-reminder-test',
     b'_simulateLaunchForTaskWithIdentifier', b'_simulateExpirationForTaskWithIdentifier',
     b'-ui-large-text', b'-ui-extra-large-text', b'Completed refreshes:',
     b'-ui-testing', b'-reset-ui-state', b'dfe-ui-testing.json', b'dfe-unit-host-',

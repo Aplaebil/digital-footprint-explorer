@@ -26,6 +26,7 @@ private final class MemoryGardenNotificationLedger: GardenNotificationLedgerStor
     private let lock = NSLock()
     private var value = DailyGardenNotificationLedger()
     var refusesReads = false
+    var refusesWrites = false
     func load() throws -> DailyGardenNotificationLedger {
         lock.lock(); defer { lock.unlock() }
         if refusesReads { throw Failure.damaged }
@@ -33,6 +34,7 @@ private final class MemoryGardenNotificationLedger: GardenNotificationLedgerStor
     }
     func save(_ ledger: DailyGardenNotificationLedger) throws {
         lock.lock(); defer { lock.unlock() }
+        if refusesWrites { throw Failure.damaged }
         value = ledger
     }
 }
@@ -41,17 +43,18 @@ private actor MemoryGardenNotificationClient: GardenNotificationClient {
     enum Failure: Error { case uncertainAdd }
     var authorized = true
     var refuseAdd = false
+    var refusedIdentifiers: Set<String> = []
     var identifiers: [String] = []
     var pendingPlans: [DailyGardenNotificationPlan] = []
     var scheduled: [DailyGardenNotificationPlan] = []
     var removed: [String] = []
-        func isAuthorized() async -> Bool { await Task.yield(); return authorized }
+    func isAuthorized() async -> Bool { await Task.yield(); return authorized }
     func requestState() async -> GardenNotificationRequestState {
         GardenNotificationRequestState(pendingIdentifiers: pendingPlans.map(\.identifier), deliveredIdentifiers: identifiers)
     }
     func add(_ plan: DailyGardenNotificationPlan) async throws {
         await Task.yield()
-        if refuseAdd { throw Failure.uncertainAdd }
+        if refuseAdd || refusedIdentifiers.contains(plan.identifier) { throw Failure.uncertainAdd }
         scheduled.append(plan)
         pendingPlans.removeAll { $0.identifier == plan.identifier }
         if plan.deliverAt > Date.distantPast { pendingPlans.append(plan) }
@@ -60,14 +63,17 @@ private actor MemoryGardenNotificationClient: GardenNotificationClient {
         removed += values
         pendingPlans.removeAll { values.contains($0.identifier) }
     }
-    func configure(authorized: Bool = true, refuseAdd: Bool = false, identifiers: [String] = []) {
+    func configure(authorized: Bool = true, refuseAdd: Bool = false, identifiers: [String] = [],
+                   refusedIdentifiers: Set<String> = []) {
         self.authorized = authorized
         self.refuseAdd = refuseAdd
         self.identifiers = identifiers
+        self.refusedIdentifiers = refusedIdentifiers
     }
     func setPending(_ plans: [DailyGardenNotificationPlan]) { pendingPlans = plans }
-    func snapshot() -> (scheduled: [DailyGardenNotificationPlan], removed: [String], identifiers: [String]) {
-        (scheduled, removed, identifiers)
+    func snapshot() -> (scheduled: [DailyGardenNotificationPlan], removed: [String], identifiers: [String],
+                        pending: [DailyGardenNotificationPlan]) {
+        (scheduled, removed, identifiers, pendingPlans)
     }
 }
 
@@ -99,8 +105,10 @@ final class DailyGardenNotificationTests: XCTestCase {
             ("2026-03-28", "2026-03-29T05:59:00Z", "2026-03-29T06:00:00Z"),
             ("2026-10-24", "2026-10-25T06:59:00Z", "2026-10-25T07:00:00Z")
         ] {
-            XCTAssertNil(DailyGardenNotificationPlan.make(records: [record(day: day)],
+            let early = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [record(day: day)],
                 automaticAccessReady: true, now: date(beforeEight), recordCalendar: calendar(), deliveryCalendar: calendar()))
+            XCTAssertEqual(early.deliverAt, date(atEight))
+            XCTAssertTrue(early.scheduledForMorning)
             let result = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [record(day: day)],
                 automaticAccessReady: true, now: date(atEight), recordCalendar: calendar(), deliveryCalendar: calendar()))
             XCTAssertEqual(result.deliverAt, date(atEight))
@@ -135,57 +143,37 @@ final class DailyGardenNotificationTests: XCTestCase {
         XCTAssertEqual(lateMorning.deliverAt, date("2026-10-21T09:00:00Z"))
     }
 
-    // [25] A day saved before breakfast still needs a fresh morning check. If Apple is briefly
-    // unavailable at eight, keep one later chance instead of waiting until tomorrow.
-    func testSavedBeforeEightRetriesPendingMorningImportThenNotifiesOnce() async throws {
+    // [25] A fresh result before breakfast can wait with iOS until eight. A later failed
+    // query must not send another message for a morning that already has one planned.
+    func testFreshResultBeforeEightSchedulesForMorningAndPreventsLaterNotice() async throws {
         let client = MemoryGardenNotificationClient()
         let ledger = MemoryGardenNotificationLedger()
         let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
-        try await coordinator.setEnabled(true)
         let days = calendar()
         let beforeEight = date("2026-10-21T05:00:00Z")
         let atEight = date("2026-10-21T06:00:00Z")
         let atNine = date("2026-10-21T07:00:00Z")
-        let saved = record()
-        let savedDates = [try XCTUnwrap(FootprintCalendar(calendar: days).date(saved.day))]
-
-        let earlyPlan = DailyGardenNotificationPlan.make(records: [saved], automaticAccessReady: true,
-            now: beforeEight, recordCalendar: days, deliveryCalendar: days)
-        XCTAssertNil(earlyPlan)
-        let earlyResult = try await coordinator.submit(earlyPlan)
-        XCTAssertEqual(earlyResult, .noEligibleDay)
-        XCTAssertEqual(BackgroundSchedule.nextAttempt(after: beforeEight, importEligible: true,
-            completedDates: savedDates, calendar: days, deliveryCalendar: days), atEight)
+        try await coordinator.setEnabled(true, now: beforeEight, calendar: days)
+        var saved = record()
+        saved.calculatedAt = beforeEight
+        let earlyPlan = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [saved], automaticAccessReady: true,
+            now: beforeEight, recordCalendar: days, deliveryCalendar: days))
+        XCTAssertEqual(earlyPlan.deliverAt, atEight)
+        XCTAssertTrue(earlyPlan.scheduledForMorning)
+        let first = try await coordinator.submit(earlyPlan, now: beforeEight, calendar: days)
+        XCTAssertEqual(first, .scheduled)
 
         let pending = ScreenTimeRefreshResult(attemptedDays: 1, pendingDays: 1)
         XCTAssertFalse(pending.canNotifyLatestCompletedDay)
-        let morningCandidate = DailyGardenNotificationPlan.make(records: [saved], automaticAccessReady: true,
-            now: atEight, recordCalendar: days, deliveryCalendar: days)
-        let retryNeeded = try await coordinator.needsRetry(for: morningCandidate)
-        XCTAssertTrue(retryNeeded)
-        XCTAssertEqual(BackgroundSchedule.nextAttempt(after: atEight, importEligible: true,
-            completedDates: savedDates, notificationRetryNeeded: retryNeeded,
-            calendar: days, deliveryCalendar: days), atNine,
-            "A temporarily unavailable fresh check must keep a chance for this morning's notice")
-        var state = await client.snapshot()
-        XCTAssertTrue(state.scheduled.isEmpty, "The old saved day must not be announced after a failed check")
-
-        let fresh = ScreenTimeRefreshResult(attemptedDays: 1, importedDays: 1,
-            latestCompletedDayRefreshed: true)
-        XCTAssertTrue(fresh.canNotifyLatestCompletedDay)
-        let refreshedPlan = DailyGardenNotificationPlan.make(records: [saved], automaticAccessReady: true,
+        let laterPlan = DailyGardenNotificationPlan.make(records: [saved], automaticAccessReady: true,
             now: atNine, recordCalendar: days, deliveryCalendar: days)
-        let first = try await coordinator.submit(refreshedPlan)
-        let duplicate = try await coordinator.submit(refreshedPlan)
-        XCTAssertEqual(first, .scheduled)
+        let retryNeeded = try await coordinator.needsRetry(for: laterPlan, now: atNine, calendar: days)
+        XCTAssertFalse(retryNeeded)
+        let duplicate = try await coordinator.submit(laterPlan, now: atNine, calendar: days)
         XCTAssertEqual(duplicate, .alreadyReserved)
-        state = await client.snapshot()
+        let state = await client.snapshot()
         XCTAssertEqual(state.scheduled.count, 1)
-        let retryAfterSending = try await coordinator.needsRetry(for: refreshedPlan)
-        XCTAssertFalse(retryAfterSending)
-        XCTAssertEqual(BackgroundSchedule.nextAttempt(after: atNine, importEligible: true,
-            completedDates: savedDates, notificationRetryNeeded: retryAfterSending,
-            calendar: days, deliveryCalendar: days), date("2026-10-22T06:00:00Z"))
+        XCTAssertEqual(state.scheduled.first?.deliverAt, atEight)
     }
 
     // [26] Another data check is useful only while the person wants notices and iOS permits them.
@@ -502,8 +490,10 @@ final class DailyGardenNotificationTests: XCTestCase {
     // has left.
     func testDeliveryClockIsLocalEvenWhenTheArchiveUsesAnotherTimeZone() throws {
         let beforeEight = date("2026-10-21T10:59:00Z") // [20] 07:59 in Sao Paulo, 12:59 in Zurich.
-        XCTAssertNil(DailyGardenNotificationPlan.make(records: [record()], automaticAccessReady: true,
+        let early = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [record()], automaticAccessReady: true,
             now: beforeEight, recordCalendar: calendar(), deliveryCalendar: calendar("America/Sao_Paulo")))
+        XCTAssertEqual(early.deliverAt, date("2026-10-21T11:00:00Z"))
+        XCTAssertTrue(early.scheduledForMorning)
         let localEight = date("2026-10-21T11:00:00Z")
         let candidate = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [record()],
             automaticAccessReady: true, now: localEight, recordCalendar: calendar(),
@@ -608,5 +598,415 @@ final class DailyGardenNotificationTests: XCTestCase {
         XCTAssertTrue(saved.reservations.isEmpty)
         XCTAssertEqual(state.removed, [candidate.identifier])
         XCTAssertEqual(state.identifiers, ["delivered-garden-receipt"])
+    }
+
+    // [28] Planning ahead leaves the morning invitation with iOS, even if DFE cannot run.
+    // Thirty separate local dates keep a quiet app from requesting an unlimited number of alerts.
+    func testMorningReminderHorizonHasThirtyLocalDatesAtEight() throws {
+        let now = date("2026-10-31T06:59:00Z")
+        let plans = DailyGardenNotificationPlan.morningReminders(after: now, calendar: calendar())
+        XCTAssertEqual(plans.count, 30)
+        XCTAssertEqual(DailyGardenNotificationPlan.morningReminders(after: now, calendar: calendar(), count: 100).count, 30)
+        XCTAssertTrue(DailyGardenNotificationPlan.morningReminders(after: now, calendar: calendar(), count: 0).isEmpty)
+        XCTAssertTrue(DailyGardenNotificationPlan.morningReminders(after: now, calendar: calendar(), count: -1).isEmpty)
+        XCTAssertEqual(plans.first?.deliveryDay, "2026-10-31")
+        XCTAssertEqual(plans.last?.deliveryDay, "2026-11-29")
+        XCTAssertEqual(plans.first?.deliverAt, date("2026-10-31T07:00:00Z"))
+        XCTAssertEqual(Set(plans.map(\.identifier)).count, 30)
+        for item in plans {
+            XCTAssertEqual(calendar().component(.hour, from: item.deliverAt), 8)
+            XCTAssertEqual(calendar().component(.minute, from: item.deliverAt), 0)
+            XCTAssertEqual(item.kind, .reminder)
+            XCTAssertTrue(item.scheduledForMorning)
+            XCTAssertTrue(item.recordDay.isEmpty)
+        }
+    }
+
+    // [29] Eight has already passed at the boundary. Start tomorrow instead of sending a
+    // surprise catch-up reminder as soon as someone turns the feature on.
+    func testReminderPlanningAtOrAfterEightStartsTomorrow() {
+        for now in [date("2026-10-31T07:00:00Z"), date("2026-10-31T20:00:00Z")] {
+            let plans = DailyGardenNotificationPlan.morningReminders(after: now, calendar: calendar(), count: 2)
+            XCTAssertEqual(plans.map(\.deliveryDay), ["2026-11-01", "2026-11-02"])
+            XCTAssertEqual(plans.first?.deliverAt, date("2026-11-01T07:00:00Z"))
+        }
+    }
+
+    // [30] Calendar days are not always twenty-four hours long. Keep breakfast at eight
+    // when the local clocks change in either direction.
+    func testPlannedRemindersKeepLocalEightAcrossShortAndLongDays() {
+        for (start, expected, gap) in [
+            ("2026-03-28T05:00:00Z", ["2026-03-28T07:00:00Z", "2026-03-29T06:00:00Z"], 23.0),
+            ("2026-10-24T05:00:00Z", ["2026-10-24T06:00:00Z", "2026-10-25T07:00:00Z"], 25.0)
+        ] {
+            let plans = DailyGardenNotificationPlan.morningReminders(after: date(start), calendar: calendar(), count: 2)
+            XCTAssertEqual(plans.map(\.deliverAt), expected.map(date))
+            XCTAssertEqual(plans[1].deliverAt.timeIntervalSince(plans[0].deliverAt), gap * 3_600)
+        }
+    }
+
+    // [31] An invitation does not know yesterday's activity. Its wording must never pretend
+    // that a new estimate, a greener garden or a streak has been calculated.
+    func testGenericReminderInvitesWithoutClaimingFreshActivityOrGrowth() throws {
+        let candidate = try XCTUnwrap(DailyGardenNotificationPlan.morningReminders(
+            after: date("2026-10-31T06:00:00Z"), calendar: calendar(), count: 1).first)
+        let text = (candidate.title + " " + candidate.body).lowercased()
+        XCTAssertFalse(text.contains("yesterday"))
+        XCTAssertFalse(text.contains("ready"))
+        XCTAssertFalse(text.contains("lower"))
+        XCTAssertFalse(text.contains("higher"))
+        XCTAssertFalse(text.contains("streak"))
+        XCTAssertFalse(text.contains("bloom"))
+        XCTAssertTrue(candidate.recordDay.isEmpty)
+        XCTAssertLessThanOrEqual(candidate.title.count, 32)
+        XCTAssertLessThanOrEqual(candidate.body.count, 100)
+    }
+
+    // [32] People who already enabled daily updates should keep their choice after upgrading.
+    // Their old saved file has no reminder list yet.
+    func testOldNotificationLedgerLoadsWithAnEmptyReminderList() throws {
+        let old = Data(#"{"enabled":true,"reservations":[]}"#.utf8)
+        let saved = try JSONDecoder().decode(DailyGardenNotificationLedger.self, from: old)
+        XCTAssertTrue(saved.enabled)
+        XCTAssertTrue(saved.reservations.isEmpty)
+        XCTAssertTrue(saved.reminders.isEmpty)
+    }
+
+    // [33] The switch remains optional. Preparing future days must not turn it on for someone.
+    func testDisabledPreferenceNeverSchedulesGenericReminders() async throws {
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        let result = try await coordinator.prepareMorningReminders(now: date("2026-10-21T05:00:00Z"),
+            calendar: calendar(), days: 3)
+        XCTAssertEqual(result, .disabled)
+        XCTAssertTrue(try ledger.load().reminders.isEmpty)
+        let state = await client.snapshot()
+        XCTAssertTrue(state.scheduled.isEmpty)
+    }
+
+    // [34] Reopening DFE should top up the coming mornings without replacing the same
+    // pending invitation every time Settings reads the saved switch.
+    func testRepeatedPreparationKeepsOnePendingReminderPerDay() async throws {
+        let now = date("2026-10-21T05:00:00Z")
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: now, calendar: calendar())
+        let first = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+        let repeated = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+        XCTAssertEqual(first, .scheduled)
+        XCTAssertEqual(repeated, .alreadyReserved)
+        let state = await client.snapshot()
+        XCTAssertEqual(state.scheduled.count, 3)
+        XCTAssertEqual(state.pending.count, 3)
+        XCTAssertEqual(Set(state.pending.map(\.identifier)).count, 3)
+        XCTAssertEqual(try ledger.load().reminders.count, 3)
+        XCTAssertTrue(try ledger.load().reservations.isEmpty)
+    }
+
+    // [35] When a fresh result is available early, replace the invitation for that same
+    // morning. A second notification would turn one useful nudge into two interruptions.
+    func testFreshPreEightResultReplacesGenericWithSameIdentifierAndDeliveryTime() async throws {
+        let now = date("2026-10-21T05:30:00Z")
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: now, calendar: calendar())
+        _ = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+        let before = await client.snapshot()
+        let original = try XCTUnwrap(before.pending.first { $0.deliveryDay == "2026-10-21" })
+        let fresh = try plan(now: now)
+        let result = try await coordinator.submit(fresh, now: now, calendar: calendar())
+        XCTAssertEqual(result, .scheduled)
+        _ = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+        let after = await client.snapshot()
+        let revised = try XCTUnwrap(after.pending.first { $0.deliveryDay == "2026-10-21" })
+        XCTAssertEqual(after.pending.count, 3)
+        XCTAssertEqual(revised.kind, .estimate)
+        XCTAssertEqual(revised.identifier, original.identifier)
+        XCTAssertEqual(revised.deliverAt, original.deliverAt)
+        XCTAssertEqual(revised.recordDay, "2026-10-20")
+        XCTAssertEqual(try ledger.load().reservations.count, 1)
+    }
+
+    // [36] Dismissing a banner removes it from Notification Center, but does not give us
+    // permission to send the same morning's invitation again.
+    func testDueGenericReminderBlocksSummaryEvenAfterSystemRequestWasDismissed() async throws {
+        let beforeEight = date("2026-10-21T05:30:00Z")
+        let afterEight = date("2026-10-21T06:05:00Z")
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: beforeEight, calendar: calendar())
+        _ = try await coordinator.prepareMorningReminders(now: beforeEight, calendar: calendar(), days: 1)
+        await client.setPending([])
+        let fresh = try plan(now: afterEight)
+        let result = try await coordinator.submit(fresh, now: afterEight, calendar: calendar())
+        let retry = try await coordinator.needsRetry(for: fresh, now: afterEight, calendar: calendar())
+        XCTAssertEqual(result, .alreadyReserved)
+        XCTAssertFalse(retry)
+        let state = await client.snapshot()
+        XCTAssertEqual(state.scheduled.count, 1)
+    }
+
+    // [37] The one-per-day record must survive an app restart. Keeping only a value in
+    // memory would lose the guard precisely when someone has closed DFE.
+    func testReminderDueGuardSurvivesRelaunchWithFileBackedLedger() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("notice-ledger.json")
+        let client = MemoryGardenNotificationClient()
+        let beforeEight = date("2026-10-21T05:30:00Z")
+        let first = DailyGardenNotificationCoordinator(client: client, ledgerStore: FileGardenNotificationLedgerStore(url: file))
+        try await first.setEnabled(true, now: beforeEight, calendar: calendar())
+        _ = try await first.prepareMorningReminders(now: beforeEight, calendar: calendar(), days: 1)
+        await client.setPending([])
+        let reopened = DailyGardenNotificationCoordinator(client: client,
+            ledgerStore: FileGardenNotificationLedgerStore(url: file))
+        let afterEight = date("2026-10-21T06:10:00Z")
+        let result = try await reopened.submit(try plan(now: afterEight), now: afterEight, calendar: calendar())
+        XCTAssertEqual(result, .alreadyReserved)
+        let state = await client.snapshot()
+        XCTAssertEqual(state.scheduled.count, 1)
+    }
+
+    // [38] A temporary refusal for one date should not erase the other planned mornings.
+    // Retrying that future date replaces the same request instead of creating another one.
+    func testPartialReminderFailureKeepsOtherDatesAndRepairsOnlyMissingFutureRequest() async throws {
+        let now = date("2026-10-21T05:30:00Z")
+        let plans = DailyGardenNotificationPlan.morningReminders(after: now, calendar: calendar(), count: 3)
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: now, calendar: calendar())
+        await client.configure(refusedIdentifiers: [plans[1].identifier])
+        let first = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+        XCTAssertEqual(first, .schedulingFailed)
+        var state = await client.snapshot()
+        XCTAssertEqual(state.pending.count, 2)
+        XCTAssertEqual(try ledger.load().reminders.count, 3)
+        await client.configure()
+        let repaired = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+        XCTAssertEqual(repaired, .scheduled)
+        state = await client.snapshot()
+        XCTAssertEqual(state.pending.count, 3)
+        XCTAssertEqual(state.scheduled.count, 3)
+        XCTAssertEqual(Set(state.pending.map(\.identifier)).count, 3)
+    }
+
+    // [39] If the date stamp cannot be saved, stop before asking iOS to deliver anything.
+    // Otherwise a crash could leave a notification with no duplicate protection.
+    func testLedgerWriteFailureStopsReminderSubmission() async throws {
+        let now = date("2026-10-21T05:30:00Z")
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: now, calendar: calendar())
+        ledger.refusesWrites = true
+        do {
+            _ = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+            XCTFail("A reminder needs its saved date guard before it is submitted.")
+        } catch { }
+        let state = await client.snapshot()
+        XCTAssertTrue(state.scheduled.isEmpty)
+    }
+
+    // [40] Turning the switch off cancels our future invitations while leaving other
+    // features and already delivered notifications alone.
+    func testOptOutAndDeniedPermissionRemoveFutureRemindersWithoutTouchingOtherNotices() async throws {
+        let now = date("2026-10-21T05:30:00Z")
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: now, calendar: calendar())
+        _ = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+        await client.configure(authorized: false, identifiers: ["another-feature"])
+        let denied = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+        XCTAssertEqual(denied, .denied)
+        var state = await client.snapshot()
+        XCTAssertTrue(state.pending.isEmpty)
+        XCTAssertEqual(state.removed.count, 3)
+        XCTAssertEqual(state.identifiers, ["another-feature"])
+        await client.configure(identifiers: ["another-feature"])
+        _ = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+        try await coordinator.setEnabled(false, now: now, calendar: calendar())
+        state = await client.snapshot()
+        XCTAssertTrue(state.pending.isEmpty)
+        XCTAssertEqual(state.identifiers, ["another-feature"])
+        let enabled = try await coordinator.isEnabled()
+        XCTAssertFalse(enabled)
+    }
+
+    // [41] Switching notices off and on after breakfast must not forget an invitation that
+    // may already have appeared, even when its banner has since been dismissed.
+    func testOptOutAndBackOnKeepsDueMorningGuard() async throws {
+        let beforeEight = date("2026-10-21T05:30:00Z")
+        let afterEight = date("2026-10-21T06:10:00Z")
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: beforeEight, calendar: calendar())
+        _ = try await coordinator.prepareMorningReminders(now: beforeEight, calendar: calendar(), days: 1)
+        await client.setPending([])
+        try await coordinator.setEnabled(false, now: afterEight, calendar: calendar())
+        try await coordinator.setEnabled(true, now: afterEight, calendar: calendar())
+        let result = try await coordinator.submit(try plan(now: afterEight), now: afterEight, calendar: calendar())
+        XCTAssertEqual(result, .alreadyReserved)
+        let state = await client.snapshot()
+        XCTAssertEqual(state.scheduled.count, 1)
+    }
+
+    // [42] Deleting history also turns this feature off and clears future invitations.
+    // Notifications already delivered are part of iOS history, not the app's saved entries.
+    func testResetCancelsGenericRequestsAndClearsTheirLedger() async throws {
+        let now = date("2026-10-21T05:30:00Z")
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: now, calendar: calendar())
+        _ = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 3)
+        await client.configure(identifiers: ["already-delivered"])
+        try await coordinator.reset()
+        let saved = try ledger.load()
+        let state = await client.snapshot()
+        XCTAssertFalse(saved.enabled)
+        XCTAssertTrue(saved.reminders.isEmpty)
+        XCTAssertTrue(saved.reservations.isEmpty)
+        XCTAssertTrue(state.pending.isEmpty)
+        XCTAssertEqual(state.identifiers, ["already-delivered"])
+    }
+
+    // [43] The open app and a background refresh can arrive together. Whichever gets here
+    // first, the final request for today must be one fresh summary with the same identifier.
+    func testConcurrentReminderPreparationAndFreshEarlySummaryKeepOnePendingRequestPerDay() async throws {
+        let now = date("2026-10-21T05:30:00Z")
+        let days = calendar()
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: now, calendar: calendar())
+        let fresh = try plan(now: now)
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for _ in 0..<10 {
+                group.addTask { _ = try await coordinator.prepareMorningReminders(now: now, calendar: days, days: 3) }
+                group.addTask { _ = try await coordinator.submit(fresh, now: now, calendar: days) }
+            }
+            try await group.waitForAll()
+        }
+        let state = await client.snapshot()
+        XCTAssertEqual(state.pending.count, 3)
+        XCTAssertEqual(Set(state.pending.map(\.identifier)).count, 3)
+        XCTAssertEqual(state.pending.first { $0.deliveryDay == "2026-10-21" }?.kind, .estimate)
+        XCTAssertEqual(try ledger.load().reservations.count, 1)
+    }
+
+    // [44] Moving east can make local eight pass before the old saved deadline. Moving west
+    // can do the reverse. In either case, a possibly delivered invitation gets no second summary.
+    func testTravelUsesBothSavedAndCurrentLocalDeadlineToPreventDuplicateSummary() async throws {
+        for (zone, later) in [
+            ("Asia/Tokyo", "2026-10-21T05:45:00Z"),
+            ("America/New_York", "2026-10-21T06:10:00Z")
+        ] {
+            let beforeEight = date("2026-10-21T05:30:00Z")
+            let client = MemoryGardenNotificationClient()
+            let ledger = MemoryGardenNotificationLedger()
+            let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+            try await coordinator.setEnabled(true, now: beforeEight, calendar: calendar())
+            _ = try await coordinator.prepareMorningReminders(now: beforeEight, calendar: calendar(), days: 1)
+            await client.setPending([])
+            let local = calendar(zone)
+            let candidate = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [record()],
+                automaticAccessReady: true, now: date(later), recordCalendar: calendar(), deliveryCalendar: local))
+            let result = try await coordinator.submit(candidate, now: date(later), calendar: local)
+            XCTAssertEqual(result, .alreadyReserved)
+            let state = await client.snapshot()
+            XCTAssertEqual(state.scheduled.count, 1)
+        }
+    }
+
+    // [45] iOS needs a real calendar request to show an invitation while DFE is closed.
+    // A floating local clock keeps eight as eight after the person changes time zones.
+    func testNativeMorningRequestsUseOneShotLocalCalendarAndTodayRoute() throws {
+        let now = date("2026-10-21T05:30:00Z")
+        let reminder = try XCTUnwrap(DailyGardenNotificationPlan.morningReminders(
+            after: now, calendar: calendar(), count: 1).first)
+        let fresh = try plan(now: now)
+        for candidate in [reminder, fresh] {
+            let request = GardenNotificationRequestBuilder.make(candidate)
+            let trigger = try XCTUnwrap(request.trigger as? UNCalendarNotificationTrigger)
+            XCTAssertFalse(trigger.repeats)
+            XCTAssertEqual(request.identifier, candidate.identifier)
+            XCTAssertEqual(trigger.dateComponents.year, 2026)
+            XCTAssertEqual(trigger.dateComponents.month, 10)
+            XCTAssertEqual(trigger.dateComponents.day, 21)
+            XCTAssertEqual(trigger.dateComponents.hour, 8)
+            XCTAssertEqual(trigger.dateComponents.minute, 0)
+            XCTAssertEqual(trigger.dateComponents.second, 0)
+            XCTAssertNil(trigger.dateComponents.timeZone)
+            XCTAssertEqual(request.content.userInfo["gardenURL"] as? String, DailyGardenNotificationPlan.gardenURL)
+        }
+        let request = GardenNotificationRequestBuilder.make(reminder)
+        XCTAssertTrue((request.content.userInfo["recordDay"] as? String ?? "").isEmpty)
+    }
+
+    // [46] A newly calculated result later in the day can still be shown immediately when
+    // no morning invitation or earlier result has taken that day's single opportunity.
+    func testNativeLaterEstimateKeepsImmediateDelivery() throws {
+        let candidate = try plan(now: date("2026-10-21T07:00:00Z"))
+        XCTAssertEqual(candidate.kind, .estimate)
+        XCTAssertFalse(candidate.scheduledForMorning)
+        let request = GardenNotificationRequestBuilder.make(candidate)
+        XCTAssertNil(request.trigger)
+        XCTAssertEqual(request.content.userInfo["recordDay"] as? String, "2026-10-20")
+        XCTAssertEqual(request.identifier, candidate.identifier)
+    }
+
+    // [47] Cancelling just before eight can finish after iOS has already shown the card.
+    // Keep its date guard when the person turns updates on again a few seconds later.
+    func testOptOutStartedBeforeEightKeepsPossibleDeliveryGuardAcrossCancellation() async throws {
+        let preparedAt = date("2026-10-21T05:59:58Z")
+        let optOutStartedAt = date("2026-10-21T05:59:59Z")
+        let optInAgainAt = date("2026-10-21T06:00:01Z")
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: preparedAt, calendar: calendar())
+        _ = try await coordinator.prepareMorningReminders(now: preparedAt, calendar: calendar(), days: 1)
+        try await coordinator.setEnabled(false, now: optOutStartedAt, calendar: calendar())
+        // [48] The pending request and dismissed banner are both gone. Neither proves
+        // that iOS managed to cancel the notification before its delivery time.
+        await client.setPending([])
+        await client.configure()
+        try await coordinator.setEnabled(true, now: optInAgainAt, calendar: calendar())
+        let result = try await coordinator.submit(try plan(now: optInAgainAt),
+            now: optInAgainAt, calendar: calendar())
+        XCTAssertEqual(result, .alreadyReserved)
+        let state = await client.snapshot()
+        XCTAssertEqual(state.scheduled.count, 1,
+                       "An uncertain cancellation must not create a second alert after eight.")
+    }
+
+    // [49] A replan can cancel unused dates near the same morning boundary. Cancellation
+    // removes the pending request, while its saved date still protects against an uncertain delivery.
+    func testReplanCancellationBeforeEightKeepsPossibleDeliveryGuard() async throws {
+        let preparedAt = date("2026-10-21T05:59:58Z")
+        let replanStartedAt = date("2026-10-21T05:59:59Z")
+        let afterEight = date("2026-10-21T06:00:01Z")
+        let client = MemoryGardenNotificationClient()
+        let ledger = MemoryGardenNotificationLedger()
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        try await coordinator.setEnabled(true, now: preparedAt, calendar: calendar())
+        _ = try await coordinator.prepareMorningReminders(now: preparedAt, calendar: calendar(), days: 1)
+        _ = try await coordinator.prepareMorningReminders(now: replanStartedAt, calendar: calendar(), days: 0)
+        await client.setPending([])
+        await client.configure()
+        let result = try await coordinator.submit(try plan(now: afterEight),
+            now: afterEight, calendar: calendar())
+        XCTAssertEqual(result, .alreadyReserved)
+        let state = await client.snapshot()
+        XCTAssertTrue(state.pending.isEmpty)
+        XCTAssertEqual(state.scheduled.count, 1,
+                       "Replanning cannot turn a possibly displayed reminder into another alert.")
     }
 }

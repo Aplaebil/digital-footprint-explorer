@@ -23,7 +23,11 @@ The ordinary `iosApp` scheme is also available for builds without the expanded S
 
 Screen Time supplies the app durations that Apple makes available. Traffic, brightness, GPS, Bluetooth and carbon emissions remain model assumptions or estimates; they are not measurements collected from other apps. The interface explains those limits.
 
-The app keeps its history on the iPhone. Its App Group holds only the latest garden summary needed by the widget. There is no DFE account, activity-upload service or remote push server. Optional morning notices are local notifications. iOS chooses background execution and widget refresh opportunities, so the app cannot promise an update at exactly 08:00.
+The app keeps its history on the iPhone. Its App Group holds only the latest garden summary needed by the widget. There is no DFE account, activity-upload service or remote push server.
+
+Optional morning reminders are local notifications saved for the next 30 mornings, around 08:00 local time. iOS can display them while DFE is closed, including after force-quit. App use or permitted background time renews the schedule. A generic invitation does not claim that a fresh estimate is ready. Before a reminder is due, a fresh valid result may replace its message using the same dated request; a later import does not send a second message after that day's reminder may have fired. Turning reminders off cancels pending messages, and deleting entries resets the choice and log. Screen Time access remains a separate choice.
+
+A saved reminder does not run a new calculation or update a widget. iOS chooses background execution and widget refresh opportunities, and force-quit normally stops fresh imports until manual reopening. Focus and notification settings can delay or hide reminders. The app cannot promise an update at exactly 08:00, indefinite reminders after more than 30 days without runtime, or fresh data from a closed app.
 
 Family Controls and App and Website Usage need the correct capabilities, profiles and user authorization. Apple's published expanded-access customer conditions include an EU-located device and an EU Apple Account region. Development testing elsewhere does not prove customer availability there. Check [Apple's entitlement guide](https://developer.apple.com/documentation/familycontrols/requesting-the-family-controls-entitlement) and [expanded access conditions](https://developer.apple.com/documentation/familycontrols/authorizationstatus/approvedwithdataaccess) before choosing release countries.
 
