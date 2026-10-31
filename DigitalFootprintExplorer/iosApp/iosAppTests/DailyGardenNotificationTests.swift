@@ -226,8 +226,9 @@ final class DailyGardenNotificationTests: XCTestCase {
     // streak.
     func testCopyUsesTheSavedGardenWithoutInventingGrowthOrStreaks() throws {
         let now = date("2026-10-21T07:00:00Z")
-        for state in [FootprintGarden.flourishing, .growing, .stable, .wilting, .withered] {
-            let result = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [record(garden: state)],
+        for (state, total) in [(FootprintGarden.flourishing, 0.05), (.growing, 0.08),
+                               (.stable, 0.1), (.wilting, 0.12), (.withered, 0.15)] {
+            let result = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [record(garden: state, total: total)],
                 automaticAccessReady: true, now: now, recordCalendar: calendar(), deliveryCalendar: calendar()))
             XCTAssertTrue(result.body.lowercased().contains("yesterday"))
             XCTAssertFalse(result.body.contains("streak"))
@@ -242,9 +243,12 @@ final class DailyGardenNotificationTests: XCTestCase {
         let transition = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [
             record(), record(day: "2026-10-18", garden: .withered), record(day: "2026-10-19", garden: .stable)
         ], automaticAccessReady: true, now: now, recordCalendar: calendar(), deliveryCalendar: calendar()))
-        XCTAssertEqual(transition.title, "Your Garden Has a New Look")
-        XCTAssertEqual(transition.body,
-                       "Yesterday's estimate was lower than usual. Come see your growing garden.")
+        let unchangedContext = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [record()],
+            automaticAccessReady: true, now: now, recordCalendar: calendar(), deliveryCalendar: calendar()))
+        XCTAssertTrue(transition.title.contains("Garden"))
+        XCTAssertNotEqual(transition.title, unchangedContext.title)
+        XCTAssertEqual(transition.body, unchangedContext.body)
+        XCTAssertTrue(transition.body.contains("lower than usual"))
     }
 
     // [06] A gap in history means we cannot honestly call a different-looking garden a change from
@@ -254,7 +258,11 @@ final class DailyGardenNotificationTests: XCTestCase {
             record(day: "2026-10-18", garden: .stable), record()
         ], automaticAccessReady: true, now: date("2026-10-21T07:00:00Z"),
             recordCalendar: calendar(), deliveryCalendar: calendar()))
-        XCTAssertEqual(candidate.title, "A Little Green Moment")
+        let withoutGap = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [record()],
+            automaticAccessReady: true, now: date("2026-10-21T07:00:00Z"),
+            recordCalendar: calendar(), deliveryCalendar: calendar()))
+        XCTAssertEqual(candidate.title, withoutGap.title)
+        XCTAssertEqual(candidate.body, withoutGap.body)
         XCTAssertFalse(candidate.body.contains("moved"))
     }
 
@@ -265,32 +273,29 @@ final class DailyGardenNotificationTests: XCTestCase {
         var incomplete = record(day: "2026-10-19", garden: .stable); incomplete.isCompleted = false
         var unproven = record(day: "2026-10-19", garden: .stable); unproven.automaticCategories = nil
         var invalid = record(day: "2026-10-19", garden: .stable); invalid.inputs.brightness = .nan
+        let withoutPrevious = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [record()],
+            automaticAccessReady: true, now: date("2026-10-21T07:00:00Z"),
+            recordCalendar: calendar(), deliveryCalendar: calendar()))
         for previous in [manual, incomplete, unproven, invalid] {
             let candidate = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [previous, record()],
                 automaticAccessReady: true, now: date("2026-10-21T07:00:00Z"),
                 recordCalendar: calendar(), deliveryCalendar: calendar()))
-            XCTAssertEqual(candidate.title, "A Little Green Moment")
+            XCTAssertEqual(candidate.title, withoutPrevious.title)
+            XCTAssertEqual(candidate.body, withoutPrevious.body)
         }
     }
 
     // [08] A Lock Screen can be seen by other people, so the message avoids app names and private
     // usage details.
     func testNotificationCopyKeepsUsageDetailsOffTheLockScreen() throws {
-        let cases: [(state: String, garden: FootprintGarden, total: Double, baseline: Double?, title: String, body: String)] = [
-            ("baseline-absent", .stable, 0.08, nil, "A Moment for Your Garden",
-             "Yesterday's daily estimate is ready. Come see how your garden looks."),
-            ("flourishing", .flourishing, 0.05, 0.1, "Look What's in Bloom",
-             "Yesterday's estimate was much lower than usual. Your garden is in bloom."),
-            ("growing", .growing, 0.08, 0.1, "A Little Green Moment",
-             "Yesterday's estimate was lower than usual. Come see your growing garden."),
-            ("stable", .stable, 0.1, 0.1, "Your Garden, Just a Tap Away",
-             "Yesterday's estimate stayed close to usual. Take a moment to look around."),
-            ("wilting", .wilting, 0.12, 0.1, "A Little Care for Your Garden",
-             "Yesterday's estimate was higher than usual. Find one small idea for today."),
-            ("withered", .withered, 0.15, 0.1, "A Fresh Day for Your Garden",
-             "Yesterday's estimate was much higher than usual. Explore one small change."),
-            ("adjacent-transition", .growing, 0.08, 0.1, "Your Garden Has a New Look",
-             "Yesterday's estimate was lower than usual. Come see your growing garden.")
+        let cases: [(state: String, garden: FootprintGarden, total: Double, baseline: Double?, phrase: String)] = [
+            ("baseline-absent", .stable, 0.08, nil, "daily estimate"),
+            ("flourishing", .flourishing, 0.05, 0.1, "much lower than usual"),
+            ("growing", .growing, 0.08, 0.1, "lower than usual"),
+            ("stable", .stable, 0.1, 0.1, "close to usual"),
+            ("wilting", .wilting, 0.12, 0.1, "higher than usual"),
+            ("withered", .withered, 0.15, 0.1, "much higher than usual"),
+            ("adjacent-transition", .growing, 0.08, 0.1, "lower than usual")
         ]
         var previews: [[String: String]] = []
         for item in cases {
@@ -300,8 +305,16 @@ final class DailyGardenNotificationTests: XCTestCase {
             let candidate = try XCTUnwrap(DailyGardenNotificationPlan.make(records: records,
                 automaticAccessReady: true, now: date("2026-10-21T07:00:00Z"),
                 recordCalendar: calendar(), deliveryCalendar: calendar()))
-            XCTAssertEqual(candidate.title, item.title)
-            XCTAssertEqual(candidate.body, item.body)
+            XCTAssertTrue(candidate.body.contains("Yesterday"))
+            XCTAssertTrue(candidate.body.contains(item.phrase))
+            if item.state == "adjacent-transition" {
+                let withoutChange = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [current],
+                    automaticAccessReady: true, now: date("2026-10-21T07:00:00Z"),
+                    recordCalendar: calendar(), deliveryCalendar: calendar()))
+                XCTAssertTrue(candidate.title.contains("Garden"))
+                XCTAssertNotEqual(candidate.title, withoutChange.title)
+                XCTAssertEqual(candidate.body, withoutChange.body)
+            }
             let text = candidate.title + " " + candidate.body
             XCTAssertTrue(text.rangeOfCharacter(from: .decimalDigits) == nil)
             XCTAssertFalse(text.contains(FootprintCategory.video.title))
@@ -1008,5 +1021,201 @@ final class DailyGardenNotificationTests: XCTestCase {
         XCTAssertTrue(state.pending.isEmpty)
         XCTAssertEqual(state.scheduled.count, 1,
                        "Replanning cannot turn a possibly displayed reminder into another alert.")
+    }
+
+    // [50] A month of invitations should feel varied without changing after every reopen.
+    // Date-based choices give tomorrow a different nudge without storing a personal profile.
+    func testThirtyDayGenericInvitationsAreVariedDeterministicAndNeverRepeatOnAdjacentDays() {
+        let now = date("2026-10-21T05:30:00Z")
+        let planned = DailyGardenNotificationPlan.morningReminders(after: now, calendar: calendar())
+        let repeated = DailyGardenNotificationPlan.morningReminders(after: now, calendar: calendar())
+        XCTAssertEqual(planned, repeated)
+        XCTAssertEqual(planned.count, 30)
+        XCTAssertGreaterThanOrEqual(Set(planned.map(\.title)).count, 8)
+        XCTAssertGreaterThanOrEqual(Set(planned.map(\.body)).count, 8)
+        for (previous, next) in zip(planned, planned.dropFirst()) {
+            XCTAssertNotEqual(previous.title, next.title)
+            XCTAssertNotEqual(previous.body, next.body)
+        }
+        for candidate in planned {
+            let text = (candidate.title + " " + candidate.body).lowercased()
+            for unprovenClaim in ["yesterday", "ready", "lower", "higher", "streak", "bloom"] {
+                XCTAssertFalse(text.contains(unprovenClaim), candidate.deliveryDay)
+            }
+            XCTAssertLessThanOrEqual(candidate.title.count, 32)
+            XCTAssertLessThanOrEqual(candidate.body.count, 100)
+            XCTAssertTrue(candidate.recordDay.isEmpty)
+        }
+    }
+
+    // [51] Different wording must still describe the same saved comparison. Only a valid
+    // neighbouring automatic day can turn that message into a claim that the garden changed.
+    func testFreshMessagesVaryAcrossLocalDaysWithoutInventingComparisonsOrChanges() throws {
+        let days = calendar()
+        let cases: [(FootprintGarden, Double, Double?, String)] = [
+            (.flourishing, 0.05, 0.1, "much lower than usual"),
+            (.growing, 0.08, 0.1, "lower than usual"),
+            (.stable, 0.1, 0.1, "close to usual"),
+            (.wilting, 0.12, 0.1, "higher than usual"),
+            (.withered, 0.15, 0.1, "much higher than usual"),
+            (.stable, 0.08, nil, "daily estimate")
+        ]
+        for (state, total, baseline, phrase) in cases {
+            var messages = Set<String>()
+            for offset in 0..<8 {
+                let now = try XCTUnwrap(days.date(byAdding: .day, value: offset,
+                    to: date("2026-10-21T10:00:00Z")))
+                let yesterday = try XCTUnwrap(days.date(byAdding: .day, value: -1, to: days.startOfDay(for: now)))
+                let previousDay = try XCTUnwrap(days.date(byAdding: .day, value: -1, to: yesterday))
+                let keys = FootprintCalendar(calendar: days)
+                var current = record(day: keys.key(yesterday), garden: state, total: total, baseline: baseline)
+                current.calculatedAt = now
+                let candidate = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [current],
+                    automaticAccessReady: true, now: now, recordCalendar: days, deliveryCalendar: days))
+                let reopened = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [current],
+                    automaticAccessReady: true, now: now, recordCalendar: days, deliveryCalendar: days))
+                XCTAssertEqual(candidate, reopened)
+                XCTAssertTrue(candidate.body.contains("Yesterday"))
+                XCTAssertTrue(candidate.body.contains(phrase))
+                XCTAssertFalse(candidate.body.lowercased().contains("first"))
+                let text = candidate.title + " " + candidate.body
+                XCTAssertFalse(text.lowercased().contains("streak"))
+                XCTAssertTrue(text.rangeOfCharacter(from: .decimalDigits) == nil)
+                XCTAssertFalse(text.contains(FootprintCategory.video.title))
+                XCTAssertLessThanOrEqual(candidate.title.count, 32)
+                XCTAssertLessThanOrEqual(candidate.body.count, 80)
+                messages.insert(text)
+
+                let sameState = record(day: keys.key(previousDay), garden: state, total: total)
+                let unchanged = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [sameState, current],
+                    automaticAccessReady: true, now: now, recordCalendar: days, deliveryCalendar: days))
+                XCTAssertEqual(unchanged.title, candidate.title)
+                XCTAssertEqual(unchanged.body, candidate.body)
+                let otherState: FootprintGarden = state == .stable ? .growing : .stable
+                let otherTotal = otherState == .stable ? 0.1 : 0.08
+                let changedBefore = record(day: keys.key(previousDay), garden: otherState, total: otherTotal)
+                let changed = try XCTUnwrap(DailyGardenNotificationPlan.make(records: [changedBefore, current],
+                    automaticAccessReady: true, now: now, recordCalendar: days, deliveryCalendar: days))
+                if baseline != nil {
+                    XCTAssertTrue(changed.title.contains("Garden"))
+                    XCTAssertNotEqual(changed.title, candidate.title)
+                } else {
+                    XCTAssertEqual(changed.title, candidate.title)
+                }
+                XCTAssertEqual(changed.body, candidate.body)
+            }
+            XCTAssertGreaterThanOrEqual(messages.count, 3)
+        }
+    }
+
+    // [52] The earlier app saved just these three reminder fields. Keeping that shape here
+    // checks a real upgrade instead of creating an already-updated test record.
+    private func oldReminderLedger(_ plans: [DailyGardenNotificationPlan]) throws -> DailyGardenNotificationLedger {
+        let rows: [[String: Any]] = plans.map { candidate in
+            ["deliveryDay": candidate.deliveryDay,
+             "deliverAt": candidate.deliverAt.timeIntervalSinceReferenceDate,
+             "timeZoneIdentifier": candidate.timeZoneIdentifier]
+        }
+        let saved: [String: Any] = ["enabled": true, "reservations": [] as [Any], "reminders": rows]
+        let bytes = try JSONSerialization.data(withJSONObject: saved)
+        return try JSONDecoder().decode(DailyGardenNotificationLedger.self, from: bytes)
+    }
+
+    // [53] Updating the app should refresh its known future invitations once. An older
+    // pending estimate with no reminder date record is left alone rather than guessed about.
+    func testOldQueuedReminderCopyIsUpdatedOnceWithoutReplacingUnknownPendingEstimate() async throws {
+        let now = date("2026-10-21T05:30:00Z")
+        let plans = DailyGardenNotificationPlan.morningReminders(after: now, calendar: calendar(), count: 4)
+        let oldPending = plans.prefix(3).map { candidate in
+            DailyGardenNotificationPlan(kind: .reminder, scheduledForMorning: true,
+                deliveryDay: candidate.deliveryDay, recordDay: "", title: "A Moment for Your Garden",
+                body: "What will your digital day look like? Open your garden to explore your latest estimate.",
+                deliverAt: candidate.deliverAt, timeZoneIdentifier: candidate.timeZoneIdentifier)
+        }
+        let unknown = DailyGardenNotificationPlan(kind: .estimate, scheduledForMorning: true,
+            deliveryDay: plans[3].deliveryDay, recordDay: "2026-10-23",
+            title: "An Existing Garden Update", body: "An earlier saved estimate.",
+            deliverAt: plans[3].deliverAt, timeZoneIdentifier: plans[3].timeZoneIdentifier)
+        let previous = try oldReminderLedger(oldPending)
+        XCTAssertEqual(previous.reminders.map(\.contentRevision), [0, 0, 0])
+        let ledger = MemoryGardenNotificationLedger()
+        try ledger.save(previous)
+        let client = MemoryGardenNotificationClient()
+        await client.setPending(oldPending + [unknown])
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        let updated = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 4)
+        XCTAssertEqual(updated, .scheduled)
+        var state = await client.snapshot()
+        XCTAssertEqual(state.scheduled.count, 3)
+        XCTAssertEqual(state.pending.count, 4)
+        XCTAssertEqual(Set(state.scheduled.map(\.identifier)), Set(oldPending.map(\.identifier)))
+        for expected in plans.prefix(3) {
+            let actual = try XCTUnwrap(state.pending.first { $0.identifier == expected.identifier })
+            XCTAssertEqual(actual.title, expected.title)
+            XCTAssertEqual(actual.body, expected.body)
+        }
+        XCTAssertEqual(state.pending.first { $0.identifier == unknown.identifier }, unknown)
+        XCTAssertTrue(try ledger.load().reminders.allSatisfy {
+            $0.contentRevision == DailyGardenNotificationPlan.reminderCopyRevision
+        })
+        let repeated = try await coordinator.prepareMorningReminders(now: now, calendar: calendar(), days: 4)
+        XCTAssertEqual(repeated, .alreadyReserved)
+        state = await client.snapshot()
+        XCTAssertEqual(state.scheduled.count, 3)
+        XCTAssertEqual(state.pending.first { $0.identifier == unknown.identifier }, unknown)
+    }
+
+    // [54] A refused future wording update can be repaired under the same identifier.
+    // Once that morning may have appeared, old wording is no reason to send another alert.
+    func testFailedReminderCopyUpdateRetriesBeforeDeadlineButNeverRepublishesADueDay() async throws {
+        let beforeEight = date("2026-10-21T05:30:00Z")
+        let retryBeforeEight = date("2026-10-21T05:45:00Z")
+        let afterEight = date("2026-10-21T06:05:00Z")
+        let original = try XCTUnwrap(DailyGardenNotificationPlan.morningReminders(
+            after: beforeEight, calendar: calendar(), count: 1).first)
+        let oldPending = DailyGardenNotificationPlan(kind: .reminder, scheduledForMorning: true,
+            deliveryDay: original.deliveryDay, recordDay: "", title: "An Earlier Garden Invitation",
+            body: "Open your garden to explore your latest estimate.",
+            deliverAt: original.deliverAt, timeZoneIdentifier: original.timeZoneIdentifier)
+        let ledger = MemoryGardenNotificationLedger()
+        try ledger.save(oldReminderLedger([oldPending]))
+        let client = MemoryGardenNotificationClient()
+        await client.setPending([oldPending])
+        await client.configure(refuseAdd: true)
+        let coordinator = DailyGardenNotificationCoordinator(client: client, ledgerStore: ledger)
+        let failed = try await coordinator.prepareMorningReminders(now: beforeEight, calendar: calendar(), days: 1)
+        XCTAssertEqual(failed, .schedulingFailed)
+        XCTAssertEqual(try ledger.load().reminders.first?.contentRevision, 0)
+        var state = await client.snapshot()
+        XCTAssertEqual(state.pending, [oldPending])
+        await client.configure()
+        let repaired = try await coordinator.prepareMorningReminders(now: retryBeforeEight, calendar: calendar(), days: 1)
+        XCTAssertEqual(repaired, .scheduled)
+        XCTAssertEqual(try ledger.load().reminders.first?.contentRevision,
+                       DailyGardenNotificationPlan.reminderCopyRevision)
+        state = await client.snapshot()
+        XCTAssertEqual(state.pending.count, 1)
+        XCTAssertEqual(state.scheduled.count, 1)
+        XCTAssertEqual(state.pending.first?.identifier, original.identifier)
+
+        let dueLedger = MemoryGardenNotificationLedger()
+        try dueLedger.save(oldReminderLedger([oldPending]))
+        let dueClient = MemoryGardenNotificationClient()
+        await dueClient.setPending([oldPending])
+        await dueClient.configure(refuseAdd: true)
+        let dueCoordinator = DailyGardenNotificationCoordinator(client: dueClient, ledgerStore: dueLedger)
+        let failedAgain = try await dueCoordinator.prepareMorningReminders(now: beforeEight, calendar: calendar(), days: 1)
+        XCTAssertEqual(failedAgain, .schedulingFailed)
+        await dueClient.setPending([])
+        await dueClient.configure()
+        _ = try await dueCoordinator.prepareMorningReminders(now: afterEight, calendar: calendar(), days: 1)
+        let dueSlot = try XCTUnwrap(try dueLedger.load().reminders.first { $0.deliveryDay == original.deliveryDay })
+        XCTAssertEqual(dueSlot.contentRevision, 0)
+        let lateSummary = try await dueCoordinator.submit(try plan(now: afterEight),
+            now: afterEight, calendar: calendar())
+        XCTAssertEqual(lateSummary, .alreadyReserved)
+        let dueState = await dueClient.snapshot()
+        XCTAssertFalse(dueState.scheduled.contains { $0.identifier == original.identifier })
+        XCTAssertFalse(dueState.pending.contains { $0.identifier == original.identifier })
     }
 }

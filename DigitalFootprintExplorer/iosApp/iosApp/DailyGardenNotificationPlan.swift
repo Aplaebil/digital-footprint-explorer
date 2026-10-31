@@ -29,6 +29,7 @@ extension ScreenTimeRefreshResult {
 struct DailyGardenNotificationPlan: Codable, Equatable, Sendable {
     static let prefix = "dfe.garden.daily."
     static let gardenURL = "digitalfootprint://today"
+    static let reminderCopyRevision = 1
     enum Kind: String, Codable, Sendable { case estimate, reminder }
     var kind: Kind = .estimate
     var scheduledForMorning = false
@@ -75,7 +76,7 @@ struct DailyGardenNotificationPlan: Codable, Equatable, Sendable {
                 && (try? candidate.inputs.validate()) != nil
                 && (try? candidate.result.validate()) != nil
         }
-        let content = message(for: record, previous: previous)
+        let content = message(for: record, previous: previous, deliveryDay: localDays.key(now))
         return Self(scheduledForMorning: now < morning, deliveryDay: localDays.key(now),
             recordDay: record.day, title: content.title, body: content.body,
             deliverAt: max(now, morning), timeZoneIdentifier: deliveryCalendar.timeZone.identifier)
@@ -91,42 +92,94 @@ struct DailyGardenNotificationPlan: Codable, Equatable, Sendable {
         let days = FootprintCalendar(calendar: calendar)
         return (first..<(first + min(count, 30))).compactMap { offset in
             guard let date = calendar.date(byAdding: .day, value: offset, to: morning) else { return nil }
+            let content = reminderMessage(deliveryDay: days.key(date))
             return Self(kind: .reminder, scheduledForMorning: true, deliveryDay: days.key(date), recordDay: "",
-                title: "A Moment for Your Garden",
-                body: "What will your digital day look like? Open your garden to explore your latest estimate.",
+                title: content.title, body: content.body,
                 deliverAt: date, timeZoneIdentifier: calendar.timeZone.identifier)
         }
     }
 
-    // [07] Make the invitation match the saved garden. Keep usage details off the lock screen,
-    // and describe a change only when the neighbouring automatic day supports it.
-    private static func message(for record: FootprintRecord, previous: FootprintRecord?) -> (title: String, body: String) {
+    // [25] Let the invitation change with the local date, without building a personal profile.
+    // Its wording never promises that new activity has already arrived.
+    private static func reminderMessage(deliveryDay: String) -> (title: String, body: String) {
+        choose([
+            ("A Moment for Your Garden", "Curious about your digital footprint? Open your garden and explore your latest estimate."),
+            ("See Your Day Differently", "Take a fresh look at your phone habits. Your garden is a place to start."),
+            ("Step Into Your Garden", "What can your digital day tell you? Take a moment to explore your garden."),
+            ("A Little Time to Reflect", "More than minutes on a screen. Open your garden for another view of your day."),
+            ("What Does Your Day Leave Behind?", "Explore your digital footprint and find one small idea for today."),
+            ("Your Garden, a Tap Away", "Pause for a moment and check in with your garden. Explore at your own pace."),
+            ("A New Morning, a Small Step", "Make room for a small change today. Open your garden to explore the latest estimate."),
+            ("Come Take a Look Around", "Your digital footprint is worth a moment. Visit your garden and see the latest estimate."),
+            ("Another View of Your Day", "Curious about your phone habits? Open your garden for a different view."),
+            ("A Quiet Moment for Your Day", "Take a breath and visit your garden. Explore your digital day at your own pace.")
+        ], day: deliveryDay)
+    }
+
+    // [07] Personal messages describe the saved comparison only. A change in the illustration
+    // needs a valid neighbouring day; curiosity is never a reason to invent progress.
+    private static func message(for record: FootprintRecord, previous: FootprintRecord?,
+                                deliveryDay: String) -> (title: String, body: String) {
         guard let baseline = record.baselineKg, baseline.isFinite, baseline > 0 else {
-            return ("A Moment for Your Garden", "Yesterday's daily estimate is ready. Come see how your garden looks.")
+            return choose([
+                ("A Moment for Your Garden", "Yesterday's daily estimate is ready. Come see how your garden looks."),
+                ("Your Digital Day, in View", "Yesterday's daily estimate is ready. Take a look at your garden."),
+                ("Step Into Your Garden", "Yesterday's daily estimate is ready. Explore a different view of your day.")
+            ], day: deliveryDay)
         }
-        let title: String
-        let body: String
+        let content: (title: String, body: String)
         switch record.garden {
         case .flourishing:
-            title = "Look What's in Bloom"
-            body = "Yesterday's estimate was much lower than usual. Your garden is in bloom."
+            content = choose([
+                ("Look What's in Bloom", "Yesterday's estimate was much lower than usual. See your garden in bloom."),
+                ("A Brighter Garden Today", "Yesterday's estimate was much lower than usual. Come take a closer look."),
+                ("Room for a Little Green", "Yesterday's estimate was much lower than usual. Explore the difference.")
+            ], day: deliveryDay)
         case .growing:
-            title = "A Little Green Moment"
-            body = "Yesterday's estimate was lower than usual. Come see your growing garden."
+            content = choose([
+                ("A Little Green Moment", "Yesterday's estimate was lower than usual. Come see your growing garden."),
+                ("See Your Garden Growing", "Yesterday's estimate was lower than usual. Take a moment to look around."),
+                ("A Small Step, a Greener Garden", "Yesterday's estimate was lower than usual. Explore your garden today.")
+            ], day: deliveryDay)
         case .stable:
-            title = "Your Garden, Just a Tap Away"
-            body = "Yesterday's estimate stayed close to usual. Take a moment to look around."
+            content = choose([
+                ("Your Garden, Just a Tap Away", "Yesterday's estimate stayed close to usual. Take a moment to look around."),
+                ("A Steady Day for Your Garden", "Yesterday's estimate stayed close to usual. Explore one idea for today."),
+                ("A Moment to Look Around", "Yesterday's estimate stayed close to usual. Come check in with your garden.")
+            ], day: deliveryDay)
         case .wilting:
-            title = "A Little Care for Your Garden"
-            body = "Yesterday's estimate was higher than usual. Find one small idea for today."
+            content = choose([
+                ("A Little Care for Your Garden", "Yesterday's estimate was higher than usual. Find one small idea for today."),
+                ("One Small Idea for Today", "Yesterday's estimate was higher than usual. Take a gentle look at your day."),
+                ("Time to Check In", "Yesterday's estimate was higher than usual. Explore a small change today.")
+            ], day: deliveryDay)
         case .withered:
-            title = "A Fresh Day for Your Garden"
-            body = "Yesterday's estimate was much higher than usual. Explore one small change."
+            content = choose([
+                ("A Fresh Day for Your Garden", "Yesterday's estimate was much higher than usual. Explore one small change."),
+                ("A New Day, Another Chance", "Yesterday's estimate was much higher than usual. Find a small step for today."),
+                ("Make a Little Room Today", "Yesterday's estimate was much higher than usual. Your garden offers a view.")
+            ], day: deliveryDay)
         }
         if let previous, previous.garden != record.garden {
-            return ("Your Garden Has a New Look", body)
+            let titles = ["Your Garden Has a New Look", "See How Your Garden Has Changed", "A New Look for Your Garden"]
+            return (titles[copyIndex(day: deliveryDay, count: titles.count)], content.body)
         }
-        return (title, body)
+        return content
+    }
+
+    // [26] Count calendar dates rather than elapsed hours, so daylight saving does not repeat
+    // yesterday's message. The same date keeps the same copy after relaunch.
+    private static func copyIndex(day: String, count: Int) -> Int {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        guard let date = FootprintCalendar(calendar: calendar).date(day),
+              let ordinal = calendar.ordinality(of: .day, in: .era, for: date), count > 0 else { return 0 }
+        return (ordinal - 1) % count
+    }
+
+    private static func choose(_ choices: [(String, String)], day: String) -> (title: String, body: String) {
+        let selected = choices[copyIndex(day: day, count: choices.count)]
+        return (selected.0, selected.1)
     }
 
 }
@@ -141,6 +194,7 @@ struct DailyGardenNotificationLedger: Codable, Equatable, Sendable {
         let deliveryDay: String
         let deliverAt: Date
         let timeZoneIdentifier: String
+        var contentRevision = 0
 
         // [18] A traveller may reach eight o'clock earlier in a new time zone.
         // Count either deadline as used, so a dismissed reminder cannot be followed by a second alert.
@@ -169,6 +223,19 @@ extension DailyGardenNotificationLedger {
         enabled = try values.decode(Bool.self, forKey: .enabled)
         reservations = try values.decode([Reservation].self, forKey: .reservations)
         reminders = try values.decodeIfPresent([MorningReminder].self, forKey: .reminders) ?? []
+    }
+}
+
+// [27] Older queued cards did not store a copy version. Keep their date guards while
+// allowing a future pending card to receive the newer varied wording.
+extension DailyGardenNotificationLedger.MorningReminder {
+    private enum CodingKeys: String, CodingKey { case deliveryDay, deliverAt, timeZoneIdentifier, contentRevision }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        deliveryDay = try values.decode(String.self, forKey: .deliveryDay)
+        deliverAt = try values.decode(Date.self, forKey: .deliverAt)
+        timeZoneIdentifier = try values.decode(String.self, forKey: .timeZoneIdentifier)
+        contentRevision = try values.decodeIfPresent(Int.self, forKey: .contentRevision) ?? 0
     }
 }
 
@@ -320,16 +387,24 @@ actor DailyGardenNotificationCoordinator {
                 let slot = ledger.reminders.first { $0.deliveryDay == plan.deliveryDay }
                 guard slot?.mayHaveDelivered(at: now, calendar: calendar) != true else { continue }
                 let needsNewZone = slot.map { $0.timeZoneIdentifier != plan.timeZoneIdentifier } ?? false
-                if existing.pendingIdentifiers.contains(plan.identifier) && !needsNewZone { continue }
+                let needsNewCopy = slot.map { $0.contentRevision != DailyGardenNotificationPlan.reminderCopyRevision } ?? false
+                if existing.pendingIdentifiers.contains(plan.identifier) && !needsNewZone && !needsNewCopy { continue }
                 // [22] Save first. If iOS accepts a request just as the app stops, the next launch
                 // must still know that this morning may already have had its one invitation.
                 ledger.reminders.removeAll { $0.deliveryDay == plan.deliveryDay }
-                ledger.reminders.append(.init(deliveryDay: plan.deliveryDay, deliverAt: plan.deliverAt,
+                let guardedDate = min(slot?.deliverAt ?? plan.deliverAt, plan.deliverAt)
+                ledger.reminders.append(.init(deliveryDay: plan.deliveryDay, deliverAt: guardedDate,
                     timeZoneIdentifier: plan.timeZoneIdentifier))
                 try ledgerStore.save(ledger)
                 do {
                     try Task.checkCancellation()
                     try await client.add(plan)
+                    // [28] Confirm the copy only after iOS accepts it. A failed replacement can be
+                    // retried with the same future identifier, while the earliest date guard stays intact.
+                    if let index = ledger.reminders.firstIndex(where: { $0.deliveryDay == plan.deliveryDay }) {
+                        ledger.reminders[index].contentRevision = DailyGardenNotificationPlan.reminderCopyRevision
+                        try ledgerStore.save(ledger)
+                    }
                     existing.pendingIdentifiers.append(plan.identifier)
                     changed = true
                 } catch is CancellationError { throw CancellationError() }

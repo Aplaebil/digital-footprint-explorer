@@ -164,6 +164,11 @@ final class GardenNotificationService: ObservableObject {
             enabled = false
             showError("Daily garden updates could not be read. Your estimates are safe.", from: .preference)
         }
+        #if DEBUG
+        // [21] Keep a current technical receipt after renewal, so device checks can verify
+        // the queued dates and wording variety without reading anyone's usage or notice text.
+        await captureTechnicalState()
+        #endif
     }
 
     /// [08] Permission is requested only after the person chooses the Settings toggle.
@@ -264,8 +269,12 @@ final class GardenNotificationService: ObservableObject {
     func captureTechnicalState(now: Date = Date()) async -> Bool {
         guard !isolated, BackgroundUpdateDiagnostics.isAllowed else { return false }
         let settings = await center.notificationSettings()
-        let pending = await center.pendingNotificationRequests().map(\.identifier)
-            .filter { $0.hasPrefix(DailyGardenNotificationPlan.prefix) }
+        let pendingRequests = await center.pendingNotificationRequests()
+            .filter { $0.identifier.hasPrefix(DailyGardenNotificationPlan.prefix) }
+        let pending = pendingRequests.map(\.identifier)
+        let copyCount = Set(pendingRequests.filter {
+            !GardenNotificationTechnicalSnapshot.deliveryDays(from: [$0.identifier]).isEmpty
+        }.map { $0.content.title + "\n" + $0.content.body }).count
         let delivered = await center.deliveredNotifications().map { $0.request.identifier }
             .filter { $0.hasPrefix(DailyGardenNotificationPlan.prefix) }
         let preference = try? await coordinator.isEnabled()
@@ -279,6 +288,7 @@ final class GardenNotificationService: ObservableObject {
             alertStyle: GardenNotificationTechnicalSnapshot.alertStyleLabel(settings.alertStyle),
             previews: GardenNotificationTechnicalSnapshot.previewLabel(settings.showPreviewsSetting),
             pendingCount: pending.count, deliveredCount: delivered.count,
+            pendingDistinctCopyCount: copyCount,
             pendingDeliveryDays: GardenNotificationTechnicalSnapshot.deliveryDays(from: pending),
             deliveredDeliveryDays: GardenNotificationTechnicalSnapshot.deliveryDays(from: delivered),
             lastSubmission: lastTechnicalSubmission)
@@ -361,6 +371,7 @@ struct GardenNotificationTechnicalSnapshot: Codable {
     let previews: String
     let pendingCount: Int
     let deliveredCount: Int
+    let pendingDistinctCopyCount: Int
     let pendingDeliveryDays: [String]
     let deliveredDeliveryDays: [String]
     let lastSubmission: String?

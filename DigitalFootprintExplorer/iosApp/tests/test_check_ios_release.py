@@ -246,7 +246,9 @@ class ReleaseChecksTests(unittest.TestCase):
 
         markers = sorted(set(release.PREVIEW_MARKERS) | {
             b'dfe.isolated-ui-screen-time', b'dfe.isolated-unit-screen-time.',
-            b'scheduleForceQuitReminderTest', b'DFE Reminder Test', b'-dfe-force-quit-reminder-test'})
+            b'scheduleForceQuitReminderTest', b'DFE Reminder Test', b'-dfe-force-quit-reminder-test',
+            b'ScreenTimeCoverageDiagnostics', b'DFEScreenTimeCoverageDiagnostics',
+            b'-dfe-coverage-alternatives', b'ScreenTimeCoverageProbeReport', b'alternatives-v1.json'})
         for bundle, executable in ((self.app, 'DFE'), (self.widget, 'GardenWidget')):
             for marker in markers:
                 with self.subTest(bundle=bundle.name, marker=marker.decode()):
